@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>YOUnique Yoga Studio</title>
+  <link rel="stylesheet" href="/assets/styles.css"/>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img src="/assets/logo.png" alt="YOUnique Yoga logo"/>
+        <span>YOUnique Yoga</span>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/book.html">Book</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/teacher-training.html">Teacher Training</a>
+        <a href="/contact.html">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+        <button class="burger" data-burger aria-expanded="false" aria-controls="mobile-drawer">Menu</button>
+      </div>
+    </div>
+
+    <div class="mobile-drawer" id="mobile-drawer" data-drawer data-open="false" style="display:none;">
+      <div class="container">
+        <a href="/book.html#book"><strong>Book</strong></a>
+        <a href="/teacher-training.html">Teacher Training</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/contact.html">Contact</a>
+        <div class="mobile-cta">
+          <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- HERO (Option 1) -->
+    <section class="hero">
+      <video autoplay muted loop playsinline>
+        <source src="/assets/hero-placeholder.mp4" type="video/mp4">
+      </video>
+
+      <div class="hero-content">
+        <img class="hero-logo" src="/assets/logo.png" alt="YOUnique Yoga"/>
+        <h1>Restore. Reconnect. Move with purpose.</h1>
+        <p>
+          A welcoming space for yoga, pilates, and restorative practices —
+          designed to support every body and every journey.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+          <a class="btn btn-secondary" href="/classes-services.html">Explore Classes</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECONDARY HEADLINE (Option 2) -->
+    <section class="section">
+      <div class="container">
+        <span class="kicker">Welcome</span>
+        <h2>Where movement becomes mindfulness.</h2>
+        <p>
+          At YOUnique Yoga, we blend intentional movement with calm, supportive energy.
+          Whether you’re here to build strength, improve mobility, or simply breathe,
+          you’ll find classes and teachers that meet you right where you are.
+        </p>
+
+        <div class="grid cols-3" style="margin-top:18px;">
+          <div class="card">
+            <h3>Yoga</h3>
+            <p>Vinyasa, restorative, prenatal options, and more — all guided with care.</p>
+            <div class="tagrow">
+              <span class="tag">Vinyasa</span><span class="tag">Restorative</span><span class="tag">Prenatal</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Pilates</h3>
+            <p>Build core strength and stability with express and reformer offerings.</p>
+            <div class="tagrow">
+              <span class="tag">Express</span><span class="tag">Reformer</span><span class="tag">Strength</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Restore</h3>
+            <p>Recovery-focused movement and services to help you reset and recharge.</p>
+            <div class="tagrow">
+              <span class="tag">Recovery</span><span class="tag">Mobility</span><span class="tag">Relax</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TODAY-ONLY SCHEDULE WIDGET -->
+    <section class="widget-wrap">
+      <div class="container">
+        <div class="widget-card">
+          <span class="kicker">Today</span>
+          <h2>Find a class that fits your day</h2>
+          <p>Browse today’s schedule and reserve your spot — right here on the site.</p>
+
+          <div data-fd-widget="fd-schedule"
+               data-fitspot-id="782"
+               data-open-externally="false"
+               data-today-only="true"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TEASERS -->
+    <section class="section">
+      <div class="container">
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>Classes &amp; Services</h3>
+            <p>
+              From Yoga Sculpt and Barre to restorative practices and one-on-one services,
+              explore what supports your unique journey.
+            </p>
+            <a class="btn btn-secondary" href="/classes-services.html">Explore</a>
+          </div>
+          <div class="card">
+            <h3>Teacher Training</h3>
+            <p>
+              Ready to deepen your practice or become a teacher? Explore our training paths
+              and request information.
+            </p>
+            <a class="btn btn-secondary" href="/teacher-training.html">Learn More</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Sticky mobile CTA -->
+  <div class="sticky-book">
+    <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <h3>YOUnique Yoga</h3>
+        <p style="color:rgba(255,255,255,.75);">
+          A calm, welcoming studio offering yoga, pilates, restorative movement,
+          and supportive services for every body.
+        </p>
+      </div>
+      <div class="footer-links">
+        <h3>Explore</h3>
+        <a href="/book.html">Book</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/teacher-training.html">Teacher Training</a>
+      </div>
+      <div class="footer-links">
+        <h3>Contact</h3>
+        <a href="/contact.html">Contact Page</a>
+        <a href="#">Instagram</a>
+        <a href="#">Facebook</a>
+        <a href="#">TikTok</a>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <div>© <span id="year"></span> YOUnique Yoga Studio</div>
+      <div>
+        <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/assets/main.js"></script>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+
+  <!-- fitDEGREE widget script (footer) -->
+  <script src="https://support.fitdegree.com/widget/fd-widget.min.js"></script>
+</body>
+</html>

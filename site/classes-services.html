@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Classes & Services | YOUnique Yoga Studio</title>
+  <link rel="stylesheet" href="/assets/styles.css"/>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img src="/assets/logo.png" alt="YOUnique Yoga logo"/>
+        <span>YOUnique Yoga</span>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/book.html">Book</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/teacher-training.html">Teacher Training</a>
+        <a href="/contact.html">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+        <button class="burger" data-burger aria-expanded="false" aria-controls="mobile-drawer">Menu</button>
+      </div>
+    </div>
+
+    <div class="mobile-drawer" id="mobile-drawer" data-drawer data-open="false" style="display:none;">
+      <div class="container">
+        <a href="/book.html#book"><strong>Book</strong></a>
+        <a href="/teacher-training.html">Teacher Training</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/contact.html">Contact</a>
+        <div class="mobile-cta">
+          <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">Home / Classes &amp; Services</div>
+        <h1>Classes &amp; Services</h1>
+        <p>
+          Explore our offerings. For exact times and availability, head to booking.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <span class="kicker">Classes</span>
+        <h2>Movement that meets you where you are</h2>
+        <p>
+          Our classes blend mindful movement with supportive guidance —
+          whether you want strength, sweat, mobility, or deep restoration.
+        </p>
+
+        <div class="grid cols-3" style="margin-top:18px;">
+          <div class="card"><h3>Vinyasa Yoga</h3><p>Breath-led flow to build strength, balance, and clarity.</p></div>
+          <div class="card"><h3>Pilates Express</h3><p>Efficient core-focused work to support posture and stability.</p></div>
+          <div class="card"><h3>Pilates Reformer</h3><p>Guided resistance training for strength, control, and alignment.</p></div>
+          <div class="card"><h3>Restorative Yoga</h3><p>Slow, supported postures for stress relief and nervous system reset.</p></div>
+          <div class="card"><h3>Yoga Sculpt</h3><p>Yoga + strength elements for a full-body burn and confidence boost.</p></div>
+          <div class="card"><h3>Barre / Step</h3><p>Upbeat movement that blends tone, balance, and endurance.</p></div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <a class="btn btn-primary" href="/book.html#book">Book from the Schedule</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tint">
+      <div class="container">
+        <span class="kicker">Services</span>
+        <h2>One-on-one care and recovery</h2>
+        <p>
+          Personalized services designed to support your body, mind, and recovery.
+          Availability is shown in booking.
+        </p>
+
+        <div class="grid cols-2" style="margin-top:18px;">
+          <div class="card">
+            <h3>Reiki • Reflexology • Thai Bodywork</h3>
+            <p>Supportive care that helps you reset, release tension, and restore balance.</p>
+          </div>
+          <div class="card">
+            <h3>Detox &amp; Wellness</h3>
+            <p>A rotating selection of wellness offerings to help you feel your best.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- One-on-One services widget -->
+    <section class="widget-wrap">
+      <div class="container">
+        <div class="widget-card">
+          <span class="kicker">Book Services</span>
+          <h2>Schedule one-on-one services</h2>
+          <p>Choose a service and reserve your time — right here on the site.</p>
+
+          <div data-fd-widget="fd-ooo-services"
+               data-fitspot-id="782"
+               data-open-externally="false"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="sticky-book">
+    <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <h3>YOUnique Yoga</h3>
+        <p style="color:rgba(255,255,255,.75);">
+          A calm, welcoming studio offering yoga, pilates, restorative movement,
+          and supportive services for every body.
+        </p>
+      </div>
+      <div class="footer-links">
+        <h3>Explore</h3>
+        <a href="/book.html">Book</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/teacher-training.html">Teacher Training</a>
+      </div>
+      <div class="footer-links">
+        <h3>Contact</h3>
+        <a href="/contact.html">Contact Page</a>
+        <a href="#">Instagram</a>
+        <a href="#">Facebook</a>
+        <a href="#">TikTok</a>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <div>© <span id="year"></span> YOUnique Yoga Studio</div>
+      <div><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></div>
+    </div>
+  </footer>
+
+  <script src="/assets/main.js"></script>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  <script src="https://support.fitdegree.com/widget/fd-widget.min.js"></script>
+</body>
+</html>

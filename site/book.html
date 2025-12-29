@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Book | YOUnique Yoga Studio</title>
+  <link rel="stylesheet" href="/assets/styles.css"/>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img src="/assets/logo.png" alt="YOUnique Yoga logo"/>
+        <span>YOUnique Yoga</span>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/book.html">Book</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/teacher-training.html">Teacher Training</a>
+        <a href="/contact.html">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-primary" href="#book">Book a Class</a>
+        <button class="burger" data-burger aria-expanded="false" aria-controls="mobile-drawer">Menu</button>
+      </div>
+    </div>
+
+    <div class="mobile-drawer" id="mobile-drawer" data-drawer data-open="false" style="display:none;">
+      <div class="container">
+        <a href="#book"><strong>Book</strong></a>
+        <a href="/teacher-training.html">Teacher Training</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/contact.html">Contact</a>
+        <div class="mobile-cta">
+          <a class="btn btn-primary" href="#book">Book a Class</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">Home / Book</div>
+        <h1>Book a Class</h1>
+        <p>
+          Browse the schedule below and reserve your spot. You’ll stay on the site
+          during booking.
+        </p>
+      </div>
+    </section>
+
+    <!-- Styled preview area (API later) -->
+    <section class="section tint">
+      <div class="container">
+        <span class="kicker">Coming Up</span>
+        <h2>Featured classes this week</h2>
+        <p>
+          This section can become your fully styled schedule feed (API-powered).
+          For now, it’s a curated preview — the full bookable schedule is below.
+        </p>
+
+        <div class="grid cols-3" style="margin-top:18px;">
+          <div class="card">
+            <h3>Vinyasa Yoga</h3>
+            <p>Breath-led flow to build strength, balance, and body awareness.</p>
+            <div class="tagrow"><span class="tag">Flow</span><span class="tag">Strength</span></div>
+          </div>
+          <div class="card">
+            <h3>Yoga Sculpt</h3>
+            <p>Yoga-inspired movement with strength elements for a full-body burn.</p>
+            <div class="tagrow"><span class="tag">Sculpt</span><span class="tag">Energy</span></div>
+          </div>
+          <div class="card">
+            <h3>Restorative Yoga</h3>
+            <p>Slow, supportive postures designed to calm the nervous system.</p>
+            <div class="tagrow"><span class="tag">Restore</span><span class="tag">Relax</span></div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <a class="btn btn-primary" href="#book">Go to Booking</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Booking widget -->
+    <section class="widget-wrap" id="book">
+      <div class="container">
+        <div class="widget-card">
+          <span class="kicker">Schedule</span>
+          <h2>Reserve your spot</h2>
+          <p>
+            Choose a class, sign in, and book — all right here.
+          </p>
+
+          <div data-fd-widget="fd-schedule"
+               data-fitspot-id="782"
+               data-open-externally="false"
+               data-today-only="false"></div>
+
+          <p style="margin-top:14px;font-size:.95rem;">
+            Having trouble? You can also book directly in fitDEGREE from your account.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="sticky-book">
+    <a class="btn btn-primary" href="#book">Book a Class</a>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <h3>YOUnique Yoga</h3>
+        <p style="color:rgba(255,255,255,.75);">
+          Yoga, pilates, restorative movement, and supportive services —
+          designed for every body and every journey.
+        </p>
+      </div>
+      <div class="footer-links">
+        <h3>Explore</h3>
+        <a href="/book.html">Book</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/teacher-training.html">Teacher Training</a>
+      </div>
+      <div class="footer-links">
+        <h3>Contact</h3>
+        <a href="/contact.html">Contact Page</a>
+        <a href="#">Instagram</a>
+        <a href="#">Facebook</a>
+        <a href="#">TikTok</a>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <div>© <span id="year"></span> YOUnique Yoga Studio</div>
+      <div><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></div>
+    </div>
+  </footer>
+
+  <script src="/assets/main.js"></script>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  <script src="https://support.fitdegree.com/widget/fd-widget.min.js"></script>
+</body>
+</html>

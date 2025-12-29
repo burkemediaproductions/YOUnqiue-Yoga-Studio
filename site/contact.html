@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Contact | YOUnique Yoga Studio</title>
+  <link rel="stylesheet" href="/assets/styles.css"/>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img src="/assets/logo.png" alt="YOUnique Yoga logo"/>
+        <span>YOUnique Yoga</span>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/book.html">Book</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/teacher-training.html">Teacher Training</a>
+        <a href="/contact.html">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+        <button class="burger" data-burger aria-expanded="false" aria-controls="mobile-drawer">Menu</button>
+      </div>
+    </div>
+
+    <div class="mobile-drawer" id="mobile-drawer" data-drawer data-open="false" style="display:none;">
+      <div class="container">
+        <a href="/book.html#book"><strong>Book</strong></a>
+        <a href="/teacher-training.html">Teacher Training</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/contact.html">Contact</a>
+        <div class="mobile-cta">
+          <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">Home / Contact</div>
+        <h1>Contact</h1>
+        <p>Questions? Want to request info? We’d love to hear from you.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>Studio Info</h3>
+            <p><strong>Address:</strong> (Add address)</p>
+            <p><strong>Phone:</strong> (Add phone)</p>
+            <p><strong>Email:</strong> (Add email)</p>
+            <p style="font-size:.95rem;">Hours and schedule are available on the booking page.</p>
+            <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+          </div>
+
+          <div class="card">
+            <h3>Send a message</h3>
+            <p style="font-size:.95rem;">Placeholder form — swap with ServiceUp form/Gravity Forms later.</p>
+            <form>
+              <label style="display:block;margin:10px 0 6px;">Name</label>
+              <input style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(0,0,0,.14);" type="text" placeholder="Your name"/>
+
+              <label style="display:block;margin:10px 0 6px;">Email</label>
+              <input style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(0,0,0,.14);" type="email" placeholder="you@example.com"/>
+
+              <label style="display:block;margin:10px 0 6px;">Message</label>
+              <textarea style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(0,0,0,.14);min-height:120px;" placeholder="How can we help?"></textarea>
+
+              <div style="margin-top:12px;">
+                <button class="btn btn-primary" type="button">Send Message</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="sticky-book">
+    <a class="btn btn-primary" href="/book.html#book">Book a Class</a>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <h3>YOUnique Yoga</h3>
+        <p style="color:rgba(255,255,255,.75);">
+          A calm, welcoming studio offering yoga, pilates, restorative movement,
+          and supportive services for every body.
+        </p>
+      </div>
+      <div class="footer-links">
+        <h3>Explore</h3>
+        <a href="/book.html">Book</a>
+        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/instructors.html">Instructor Team</a>
+        <a href="/teacher-training.html">Teacher Training</a>
+      </div>
+      <div class="footer-links">
+        <h3>Contact</h3>
+        <a href="/contact.html">Contact Page</a>
+        <a href="#">Instagram</a>
+        <a href="#">Facebook</a>
+        <a href="#">TikTok</a>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <div>© <span id="year"></span> YOUnique Yoga Studio</div>
+      <div><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></div>
+    </div>
+  </footer>
+
+  <script src="/assets/main.js"></script>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  <script src="https://support.fitdegree.com/widget/fd-widget.min.js"></script>
+</body>
+</html>
