@@ -26,11 +26,19 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function formatPrettyDateTime(fsEventDatetime) {
-  // fs_event_datetime is already in fitspot local time
-  // Format: "December 22, 2025 • 6:50pm"
-  const d = new Date(fsEventDatetime.replace(" ", "T") + ":00");
-  if (Number.isNaN(d.getTime())) return fsEventDatetime;
+function formatPrettyDateTime(value) {
+  if (!value) return ""; // <-- prevents .replace crash
+
+  // value is usually "YYYY-MM-DD HH:MM:SS"
+  const str = String(value);
+
+  // Force a parseable ISO-ish string
+  const d = new Date(str.replace(" ", "T") + (str.length === 19 ? "" : ""));
+
+  if (Number.isNaN(d.getTime())) {
+    // last resort: return original
+    return str;
+  }
 
   const date = d.toLocaleDateString("en-US", {
     month: "long",
@@ -51,7 +59,15 @@ function formatPrettyDateTime(fsEventDatetime) {
 function buildCard(item) {
   const title = escapeHtml(item.title || "Class");
   const instructor = escapeHtml(item.instructor_name || "");
-  const when = escapeHtml(formatPrettyDateTime(item.fs_event_datetime || item.event_datetime));
+  const dt =
+    item.fs_event_datetime ||
+    item.event_datetime ||
+    item.fs_end_datetime ||
+    item.end_datetime ||
+    "";
+
+  const whenPretty = formatPrettyDateTime(dt);
+  const when = whenPretty ? escapeHtml(whenPretty) : "";
   const descRaw = (item.description || "").trim();
   const desc = escapeHtml(descRaw);
 
@@ -61,7 +77,7 @@ function buildCard(item) {
     <article class="card">
       <h3>${title}</h3>
       <p class="muted" style="margin-top:6px;">
-        ${when}${instructor ? ` · ${instructor}` : ""}
+          ${when ? when : "Time TBD"}${instructor ? ` · ${instructor}` : ""}
       </p>
       ${desc ? `<p style="margin-top:10px;">${desc}</p>` : ""}
       <p style="margin-top:14px;">
