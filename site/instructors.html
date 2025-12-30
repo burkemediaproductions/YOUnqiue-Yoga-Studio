@@ -65,14 +65,14 @@
           (or API-fed instructor data) anytime.
         </p>
 
-        <div class="grid cols-3" style="margin-top:18px;">
-          <div class="card"><h3>Instructor Name</h3><p>Specialties: Vinyasa • Mobility • Breathwork</p></div>
-          <div class="card"><h3>Instructor Name</h3><p>Specialties: Pilates • Core • Alignment</p></div>
-          <div class="card"><h3>Instructor Name</h3><p>Specialties: Restorative • Recovery • Calm</p></div>
-          <div class="card"><h3>Instructor Name</h3><p>Specialties: Sculpt • Strength • Confidence</p></div>
-          <div class="card"><h3>Instructor Name</h3><p>Specialties: Barre • Balance • Endurance</p></div>
-          <div class="card"><h3>Instructor Name</h3><p>Specialties: Prenatal • Support • Care</p></div>
+        <div id="instructor-grid" class="grid cols-3" style="margin-top:18px;">
+            <!-- populated by JS -->
         </div>
+
+        <p id="instructor-error" class="muted" style="display:none; margin-top:14px;">
+            Unable to load instructors right now. Please check back soon.
+        </p>
+
       </div>
     </section>
 
@@ -130,5 +130,96 @@
   <script src="/assets/main.js"></script>
   <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
   <script src="https://support.fitdegree.com/widget/fd-widget.min.js"></script>
+  <script>
+  const API_BASE = "https://younqiue-yoga.onrender.com";
+
+  function pickImageUrl(imagesById, profilePictureId) {
+    const img = imagesById[String(profilePictureId || "")];
+    if (!img || !Array.isArray(img.sources) || img.sources.length === 0) return null;
+
+    // Prefer the largest available source
+    const sorted = [...img.sources].sort((a, b) => (b.width || 0) - (a.width || 0));
+    return sorted[0].url || null;
+  }
+
+  function escapeHtml(str) {
+    return (str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  async function loadInstructors() {
+    const grid = document.getElementById("instructor-grid");
+    const err = document.getElementById("instructor-error");
+
+    try {
+      const res = await fetch(`${API_BASE}/api/gizmos/fitdegree/public/instructors`, {
+        method: "GET",
+        headers: { "Accept": "application/json" }
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+
+      // Your API currently returns: { ok:true, data:{ auth_status, response:{ success, data:{ items, cache }}}}
+      const payload = json?.data?.response?.data;
+      const items = payload?.items || [];
+      const images = payload?.cache?.images || [];
+
+      // Build images lookup
+      const imagesById = {};
+      for (const img of images) imagesById[String(img.id)] = img;
+
+      if (!Array.isArray(items) || items.length === 0) {
+        grid.innerHTML = `<div class="card"><h3>No instructors found</h3><p>Please check back soon.</p></div>`;
+        return;
+      }
+
+      // Render cards
+      grid.innerHTML = items.map((p) => {
+        const fullName = `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Instructor";
+        const about = (p.about_me || "").trim();
+        const imgUrl = pickImageUrl(imagesById, p.profile_picture_image_id);
+        const initials = escapeHtml(p.initials || "");
+
+        return `
+          <article class="card instructor-card">
+            <div class="instructor-top" style="display:flex; gap:14px; align-items:center; margin-bottom:10px;">
+              ${
+                imgUrl
+                  ? `<img src="${escapeHtml(imgUrl)}"
+                           alt="${escapeHtml(fullName)}"
+                           loading="lazy"
+                           style="width:64px;height:64px;border-radius:999px;object-fit:cover;flex:0 0 64px;">`
+                  : `<div aria-hidden="true"
+                          style="width:64px;height:64px;border-radius:999px;display:grid;place-items:center;flex:0 0 64px;background:rgba(0,0,0,.06);font-weight:700;">
+                        ${initials || "YY"}
+                     </div>`
+              }
+              <div>
+                <h3 style="margin:0;">${escapeHtml(fullName)}</h3>
+                <p style="margin:6px 0 0; opacity:.8;">${escapeHtml(p.username || "")}</p>
+              </div>
+            </div>
+
+            ${
+              about
+                ? `<p style="margin:0; white-space:pre-line;">${escapeHtml(about)}</p>`
+                : `<p style="margin:0; opacity:.8;">Bio coming soon.</p>`
+            }
+          </article>
+        `;
+      }).join("");
+    } catch (e) {
+      console.error("[instructors] load error:", e);
+      err.style.display = "block";
+    }
+  }
+
+  loadInstructors();
+</script>
 </body>
 </html>
