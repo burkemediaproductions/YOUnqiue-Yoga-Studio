@@ -7,35 +7,63 @@
  * - Some code calls endpoints as strings (TEAM_MEMBERS)
  * - Some code calls them as functions (instructors())
  * This file supports BOTH for backwards/forwards compatibility.
+ *
+ * Based on real FitDegree network calls seen in DevTools:
+ * - List employees/instructors: GET /employee/?company_id=...
+ * - Token endpoint: GET /employees/token/?api_token=...
  */
 
 export const FITDEGREE_ENDPOINTS = {
-  // Canonical string endpoints
-  UPCOMING_CLASSES: "/api/v1/UPCOMING_CLASSES",
-  TEAM_MEMBERS: "/api/v1/TEAM_MEMBERS",
+  // ✅ Canonical endpoints (real FitDegree base endpoints)
+  EMPLOYEES: "/employee/",
+  EMPLOYEE_BY_ID: "/employee/", // same endpoint, uses id=12345
+  TOKEN: "/employees/token/",
 
-  // Friendly string aliases (in case router references these)
-  upcomingClasses: "/api/v1/UPCOMING_CLASSES",
-  instructors: "/api/v1/TEAM_MEMBERS",
-  teamMembers: "/api/v1/TEAM_MEMBERS",
+  // ✅ Back-compat “old names” that previously pointed at /api/v1/*
+  // Treat team members / instructors as employees
+  TEAM_MEMBERS: "/employee/",
+  UPCOMING_CLASSES: "/classes/", // may differ per FitDegree account; keep as placeholder
 
-  // Function aliases (in case router calls them like endpoints.instructors())
-  upcoming_classes() {
-    return "/api/v1/UPCOMING_CLASSES";
+  // ✅ Friendly string aliases
+  employees: "/employee/",
+  employee: "/employee/",
+  instructors: "/employee/",
+  teamMembers: "/employee/",
+  team_members: "/employee/",
+  upcomingClasses: "/classes/",
+  classes: "/classes/",
+
+  // ✅ Function aliases (in case router calls endpoints.instructors())
+  EMPLOYEES_FN() {
+    return "/employee/";
   },
-  classes() {
-    return "/api/v1/UPCOMING_CLASSES";
+  employeesFn() {
+    return "/employee/";
   },
   instructorsFn() {
-    return "/api/v1/TEAM_MEMBERS";
+    return "/employee/";
   },
   instructors() {
-    return "/api/v1/TEAM_MEMBERS";
-  },
-  team_members() {
-    return "/api/v1/TEAM_MEMBERS";
+    return "/employee/";
   },
   teamMembersFn() {
-    return "/api/v1/TEAM_MEMBERS";
+    return "/employee/";
+  },
+  team_members_fn() {
+    return "/employee/";
+  },
+  team_members() {
+    return "/employee/";
+  },
+
+  // Classes placeholders (keep, but will likely need adjustment)
+  upcoming_classes() {
+    return "/classes/";
+  },
+  upcomingClassesFn() {
+    return "/classes/";
+  },
+  classesFn() {
+    return "/classes/";
   },
 };
