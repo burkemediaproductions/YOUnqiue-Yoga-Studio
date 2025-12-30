@@ -15,7 +15,7 @@ const fitdegreeGizmo = {
   id: "fitdegree",
   register(app) {
     // 🔥 debug proof route
-    app.get(`/api/gizmos/${this.id}/__ping`, (_req, res) => {
+    app.get(`/api/gizmos/${this.id}/public/__ping`, (_req, res) => {
       res.json({ ok: true, gizmo: this.id });
     });
 
