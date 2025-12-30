@@ -6,12 +6,24 @@ import { FITDEGREE_ENDPOINTS } from "./endpoints.js";
 const router = express.Router();
 
 function resolveEndpoint(value, fallback) {
-  // support function endpoints
   if (typeof value === "function") return value();
-  // support string endpoints
   if (typeof value === "string" && value.trim()) return value.trim();
-  // fallback
   return fallback;
+}
+
+function pickCompanyId(req) {
+  // Prefer explicit query param for testing
+  if (req.query.company_id) return String(req.query.company_id).trim();
+
+  // Prefer a dedicated env var if you add it
+  if (process.env.FITDEGREE_COMPANY_ID)
+    return String(process.env.FITDEGREE_COMPANY_ID).trim();
+
+  // Back-compat fallback (might not match FitDegree "company_id")
+  if (process.env.FITDEGREE_FITSPOT_ID)
+    return String(process.env.FITDEGREE_FITSPOT_ID).trim();
+
+  return "";
 }
 
 router.get("/public/__ping", (_req, res) => {
@@ -22,19 +34,28 @@ router.get("/__ping", (_req, res) => {
   res.json({ ok: true, pack: "fitdegree" });
 });
 
-// PUBLIC: instructors (team members)
+// PUBLIC: instructors (employees / team members)
 router.get("/public/instructors", async (req, res) => {
   try {
     const endpoint = resolveEndpoint(
       FITDEGREE_ENDPOINTS.instructors,
-      FITDEGREE_ENDPOINTS.TEAM_MEMBERS
+      FITDEGREE_ENDPOINTS.EMPLOYEES
     );
+
+    const companyId = pickCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "Missing company_id. Provide ?company_id=### or set FITDEGREE_COMPANY_ID in Render env.",
+      });
+    }
 
     const data = await fitdegreeFetchJson(endpoint, {
       query: {
-        // FitDegree often uses these; harmless if ignored
-        page: req.query.page,
-        limit: req.query.limit,
+        company_id: companyId,
+        page: req.query.page || 1,
+        limit: req.query.limit || 50,
       },
     });
 
@@ -48,7 +69,7 @@ router.get("/public/instructors", async (req, res) => {
   }
 });
 
-// PUBLIC: upcoming classes
+// PUBLIC: upcoming classes (placeholder until we confirm FitDegree classes endpoint)
 router.get("/public/classes", async (req, res) => {
   try {
     const endpoint = resolveEndpoint(
@@ -56,10 +77,13 @@ router.get("/public/classes", async (req, res) => {
       FITDEGREE_ENDPOINTS.UPCOMING_CLASSES
     );
 
+    const companyId = pickCompanyId(req);
+
     const data = await fitdegreeFetchJson(endpoint, {
       query: {
-        page: req.query.page,
-        limit: req.query.limit,
+        ...(companyId ? { company_id: companyId } : {}),
+        page: req.query.page || 1,
+        limit: req.query.limit || 50,
       },
     });
 
