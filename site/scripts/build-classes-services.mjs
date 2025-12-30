@@ -54,10 +54,8 @@ function buildGrid(cardsHtml) {
   if (!cardsHtml.length) {
     return `<p class="muted" style="margin-top:14px;">Nothing to show right now. Please check back soon.</p>`;
   }
-  return `
-    <div class="grid cols-3" style="margin-top:18px;">
+  return '
       ${cardsHtml.join("\n")}
-    </div>
   `.trim();
 }
 
