@@ -1,22 +1,12 @@
-import usersRouter from './routes/users.js';
-import taxonomiesRouter from './routes/taxonomies.js';
-import rolesRouter from './routes/roles.js';
-import {
-  normalizeEmail,
-  normalizePhoneE164,
-  normalizeUrl,
-  normalizeAddress,
-} from './lib/fieldUtils.js';
-
-import mountExtraRoutes from './extra-routes.js';
-import { mountGizmoPacks } from './gizmos-loader.js';
-
 import express from 'express';
 import dotenv from 'dotenv';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
+import usersRouter from './routes/users.js';
+import taxonomiesRouter from './routes/taxonomies.js';
+import rolesRouter from './routes/roles.js';
 import permissionsRouter from './routes/permissions.js';
 import settingsRouter from './routes/settings.js';
 import dashboardRouter from './routes/dashboard.js';
@@ -24,19 +14,27 @@ import contentTypesRouter from './routes/contentTypes.js';
 import entryViewsRouter from './routes/entryViews.js';
 import listViewsRouter from './routes/listViews.js';
 
-// NEW: Gizmos & Gadgets & Widgets routers
+// Gizmos & Gadgets & Widgets routers (admin / internal)
 import gizmosRouter from './routes/gizmos.js';
 import gadgetsRouter from './routes/gadgets.js';
 import widgetsRouter from './routes/widgets.js';
 import publicWidgetsRouter from './routes/publicWidgets.js';
 
-// Gizmo Packs
+// Gizmo Packs API
 import gizmoPacksRouter from './routes/gizmoPacks.js';
 
-/* ----------------------- ✅ Mount Gizmo Packs (AUTO) ---------------- */
-
-// Frontend Renderer
+// Public site renderer routes
 import publicSiteRouter from './routes/publicSite.js';
+
+import mountExtraRoutes from './extra-routes.js';
+import { mountGizmoPacks } from './gizmos-loader.js';
+
+import {
+  normalizeEmail,
+  normalizePhoneE164,
+  normalizeUrl,
+  normalizeAddress,
+} from './lib/fieldUtils.js';
 
 dotenv.config();
 
@@ -65,7 +63,10 @@ app.use((req, res, next) => {
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS');
+    res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET,POST,PATCH,PUT,DELETE,OPTIONS'
+    );
     res.setHeader('Access-Control-Expose-Headers', 'ETag');
   }
 
@@ -311,7 +312,7 @@ function normalizeEntryData(fieldDefs, dataIn) {
       }
     }
     return out;
-  } catch (e) {
+  } catch {
     return dataIn;
   }
 }
@@ -329,7 +330,6 @@ async function attachResolvedUsersToEntries(typeId, entries) {
   const list = Array.isArray(entries) ? entries : [entries];
   if (!typeId || !list.length) return entries;
 
-  // 1) Load only the user-relation fields for this type
   const { rows: userFieldRows } = await pool.query(
     `
       SELECT field_key, type, config
@@ -342,7 +342,6 @@ async function attachResolvedUsersToEntries(typeId, entries) {
 
   if (!userFieldRows.length) return entries;
 
-  // normalize field config + compute which keys we should read from data
   const userFields = {};
   for (const f of userFieldRows) {
     const cfg = f.config && typeof f.config === 'object' ? f.config : {};
@@ -354,7 +353,6 @@ async function attachResolvedUsersToEntries(typeId, entries) {
     };
   }
 
-  // 2) Gather all UUIDs referenced in entry.data[field_key]
   const idsSet = new Set();
 
   for (const entry of list) {
@@ -374,7 +372,6 @@ async function attachResolvedUsersToEntries(typeId, entries) {
 
   const ids = Array.from(idsSet);
   if (!ids.length) {
-    // still attach field metadata so the UI knows how to render the field
     for (const entry of list) {
       entry._resolved = entry._resolved || {};
       entry._resolved.userFields = userFields;
@@ -383,7 +380,6 @@ async function attachResolvedUsersToEntries(typeId, entries) {
     return entries;
   }
 
-  // 3) Resolve all users in one query
   const { rows: users } = await pool.query(
     `
       SELECT id, email, name, role, status
@@ -396,7 +392,6 @@ async function attachResolvedUsersToEntries(typeId, entries) {
   const usersById = {};
   for (const u of users) usersById[u.id] = u;
 
-  // 4) Attach
   for (const entry of list) {
     entry._resolved = entry._resolved || {};
     entry._resolved.userFields = userFields;
@@ -445,11 +440,11 @@ function authMiddleware(req, res, next) {
   // Global public paths
   if (path.startsWith('/public/')) return next();
 
-  // ✅ Public gizmo endpoints (works no matter how routers are mounted)
+  // ✅ Public gizmo endpoints
   // Allows: /api/gizmos/<packSlug>/public/*
   if (/\/api\/gizmos\/[^/]+\/public(\/|$)/.test(url)) return next();
 
-  // (Optional) if you ever mount at /api/gizmos and lose the /api/gizmos prefix in req.path:
+  // Optional: in case req.path loses the /api prefix due to mounting
   if (/^\/[^/]+\/public(\/|$)/.test(path) && url.includes('/api/gizmos/')) return next();
 
   const authHeader = req.headers.authorization;
@@ -466,7 +461,6 @@ function authMiddleware(req, res, next) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
-
 
 /* ----------------------- Entries ----------------------------------- */
 
@@ -490,7 +484,6 @@ app.get('/api/content/:slug', async (req, res) => {
       [typeId]
     );
 
-    // ✅ Option B expansion (list)
     await attachResolvedUsersToEntries(typeId, entries);
 
     res.json(entries);
@@ -527,11 +520,9 @@ app.post('/api/content/:slug', authMiddleware, async (req, res) => {
 
     const typeId = ctRows[0].id;
 
-    // Server-side title/slug derivation from the effective Editor View core config
     const roleUpper = String(req.user?.role || 'ADMIN').toUpperCase();
     const core = await getEffectiveEditorCoreForType(typeId, roleUpper);
 
-    // If this content type's editor view uses a title template, always derive title from data
     if (core && String(core.titleMode || '').toLowerCase() === 'template') {
       const derived = deriveTitleFromTemplate(core.titleTemplate || '', data || {});
       if (derived) title = derived;
@@ -540,8 +531,10 @@ app.post('/api/content/:slug', authMiddleware, async (req, res) => {
     const safeTitle = typeof title === 'string' && title.trim() ? title.trim() : null;
     if (!safeTitle) return res.status(400).json({ error: 'Title is required' });
 
-    // If slug is empty, optionally derive from title
-    if ((!entrySlug || !String(entrySlug).trim()) && core?.autoSlugFromTitleIfEmpty !== false) {
+    if (
+      (!entrySlug || !String(entrySlug).trim()) &&
+      core?.autoSlugFromTitleIfEmpty !== false
+    ) {
       entrySlug = slugify(safeTitle);
     }
 
@@ -566,7 +559,6 @@ app.post('/api/content/:slug', authMiddleware, async (req, res) => {
       [typeId, safeTitle, finalSlug, finalStatus, normalizedData]
     );
 
-    // optional: attach resolved users on create response (helps immediate UI render)
     await attachResolvedUsersToEntries(typeId, rows[0]);
 
     res.status(201).json(rows[0]);
@@ -613,7 +605,6 @@ app.get('/api/content/:slug/:id', authMiddleware, async (req, res) => {
     const { rows } = await pool.query(entryQuery, entryParams);
     if (!rows.length) return res.status(404).json({ error: 'Entry not found' });
 
-    // ✅ Option B expansion (single)
     await attachResolvedUsersToEntries(typeId, rows[0]);
 
     res.json(rows[0]);
@@ -646,11 +637,9 @@ app.put('/api/content/:slug/:id', authMiddleware, async (req, res) => {
 
     const typeId = ctRows[0].id;
 
-    // Server-side title/slug derivation from the effective Editor View core config
     const roleUpper = String(req.user?.role || 'ADMIN').toUpperCase();
     const core = await getEffectiveEditorCoreForType(typeId, roleUpper);
 
-    // If this content type's editor view uses a title template, always derive title from data
     if (core && String(core.titleMode || '').toLowerCase() === 'template') {
       const derived = deriveTitleFromTemplate(core.titleTemplate || '', data || {});
       if (derived) title = derived;
@@ -659,8 +648,10 @@ app.put('/api/content/:slug/:id', authMiddleware, async (req, res) => {
     const safeTitle = typeof title === 'string' && title.trim() ? title.trim() : null;
     if (!safeTitle) return res.status(400).json({ error: 'Title is required' });
 
-    // If slug is empty, optionally derive from title
-    if ((!entrySlug || !String(entrySlug).trim()) && core?.autoSlugFromTitleIfEmpty !== false) {
+    if (
+      (!entrySlug || !String(entrySlug).trim()) &&
+      core?.autoSlugFromTitleIfEmpty !== false
+    ) {
       entrySlug = slugify(safeTitle);
     }
 
@@ -707,7 +698,6 @@ app.put('/api/content/:slug/:id', authMiddleware, async (req, res) => {
 
     if (!updated.rows.length) return res.status(404).json({ error: 'Entry not found' });
 
-    // optional: attach resolved users on update response
     await attachResolvedUsersToEntries(typeId, updated.rows[0]);
 
     res.json(updated.rows[0]);
@@ -797,31 +787,32 @@ app.get('/api/health', (_req, res) => {
 app.use('/api', publicSiteRouter);
 app.use('/api', publicWidgetsRouter);
 
+// core/admin routes
 app.use('/api/content-types', authMiddleware, contentTypesRouter);
 app.use('/api/users', authMiddleware, usersRouter);
 app.use('/api/taxonomies', taxonomiesRouter);
 app.use('/api/roles', authMiddleware, rolesRouter);
 app.use('/api/permissions', authMiddleware, permissionsRouter);
-
 app.use('/api/settings', settingsRouter);
-
 app.use('/api/dashboard', authMiddleware, dashboardRouter);
 
 // editor + list views
 app.use('/api', entryViewsRouter);
 app.use('/api', listViewsRouter);
 
-// Gizmos & Gadgets & Widgets
+// Gizmos admin CRUD + other modules
 app.use('/api', authMiddleware, gizmosRouter);
 app.use('/api', authMiddleware, gadgetsRouter);
 app.use('/api', authMiddleware, widgetsRouter);
 
-// Gizmo Packs
+// Gizmo Packs registry API
 app.use('/api/gizmo-packs', gizmoPacksRouter);
 
 // redirects
 app.get('/content-types', (_req, res) => res.redirect(301, '/api/content-types'));
-app.get('/content/:slug', (req, res) => res.redirect(301, `/api/content/${req.params.slug}`));
+app.get('/content/:slug', (req, res) =>
+  res.redirect(301, `/api/content/${req.params.slug}`)
+);
 
 /* ----------------------- Last-chance error handler ----------------- */
 app.use((err, req, res, _next) => {
@@ -837,8 +828,17 @@ app.use((err, req, res, _next) => {
 
 /* ----------------------- Listen ------------------------------------ */
 async function start() {
-  // Mount all Gizmo Packs before opening the port (no top-level await)
+  // ✅ Mount Gizmo Packs BEFORE opening the port
   await mountGizmoPacks(app);
+
+  // Helpful debug: confirm your /api/gizmos/* routes exist
+  console.log(
+    '[ROUTES after gizmos]',
+    listRoutes(app).filter(
+      (r) =>
+        String(r.path).includes('gizmo') || String(r.path).includes('gizmos')
+    )
+  );
 
   const PORT = process.env.PORT || 4000;
   app.listen(PORT, '0.0.0.0', () => {
