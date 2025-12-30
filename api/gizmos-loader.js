@@ -1,3 +1,4 @@
+// api/gizmos-loader.js
 import fs from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
@@ -5,38 +6,45 @@ import { pathToFileURL } from "url";
 /**
  * Auto-mount any gizmo pack that exports a default object with register(app).
  *
- * Supports BOTH deployments:
- * 1) Render Root Directory = repo root
- *    cwd: /opt/render/project/src
- *    packs: /opt/render/project/src/api/src/gizmos/<slug>/server/index.js
+ * Supported structures:
+ *   (when cwd is repo root)
+ *     api/src/gizmos/<slug>/server/index.js
+ *     api/src/gizmos/<slug>/server.js
+ *     api/gizmos/<slug>/server/index.js
+ *     api/gizmos/<slug>/server.js
  *
- * 2) Render Root Directory = api/
- *    cwd: /opt/render/project/src/api
- *    packs: /opt/render/project/src/api/src/gizmos/<slug>/server/index.js
+ *   (when cwd is api/ on Render)
+ *     src/gizmos/<slug>/server/index.js
+ *     src/gizmos/<slug>/server.js
+ *     gizmos/<slug>/server/index.js
+ *     gizmos/<slug>/server.js
  */
 export async function mountGizmoPacks(app) {
   const cwd = process.cwd();
 
   const baseDirs = [
-    // If service root is repo root:
-    path.resolve(cwd, "api", "src", "gizmos"),
-    path.resolve(cwd, "api", "gizmos"),
-
-    // If service root is already /api:
+    // ✅ Render root-dir = api
     path.resolve(cwd, "src", "gizmos"),
     path.resolve(cwd, "gizmos"),
+
+    // ✅ Repo root (legacy / local)
+    path.resolve(cwd, "api", "src", "gizmos"),
+    path.resolve(cwd, "api", "gizmos"),
   ];
 
-  console.log("[GIZMOS] cwd:", cwd);
-  console.log("[GIZMOS] baseDirs to check:", baseDirs);
+  console.log("[GIZMOS] mountGizmoPacks() cwd =", cwd);
+  console.log("[GIZMOS] baseDirs =", baseDirs);
 
   const mounted = new Set();
+  let sawAnyBaseDir = false;
 
   for (const baseDir of baseDirs) {
     if (!fs.existsSync(baseDir)) {
       console.log("[GIZMOS] No gizmos directory:", baseDir);
       continue;
     }
+
+    sawAnyBaseDir = true;
 
     const gizmoDirs = fs
       .readdirSync(baseDir, { withFileTypes: true })
@@ -46,7 +54,7 @@ export async function mountGizmoPacks(app) {
     console.log("[GIZMOS] Found packs in", baseDir, ":", gizmoDirs);
 
     for (const slug of gizmoDirs) {
-      if (mounted.has(slug)) continue;
+      if (mounted.has(slug)) continue; // prefer first match in baseDirs order
 
       const candidates = [
         path.join(baseDir, slug, "server", "index.js"),
@@ -78,6 +86,13 @@ export async function mountGizmoPacks(app) {
     }
   }
 
-  if (!mounted.size) console.log("[GIZMOS] No packs mounted.");
-  return Array.from(mounted);
+  if (!sawAnyBaseDir) {
+    console.log("[GIZMOS] No base gizmos folders exist at any expected path.");
+  }
+
+  if (!mounted.size) {
+    console.log("[GIZMOS] No packs mounted.");
+  } else {
+    console.log("[GIZMOS] Mounted packs:", Array.from(mounted));
+  }
 }
