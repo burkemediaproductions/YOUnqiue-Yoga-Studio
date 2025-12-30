@@ -9,6 +9,8 @@ import {
 } from './lib/fieldUtils.js';
 
 import mountExtraRoutes from './extra-routes.js';
+import { mountGizmoPacks } from './gizmos-loader.js';
+
 import express from 'express';
 import dotenv from 'dotenv';
 import pg from 'pg';
@@ -30,6 +32,8 @@ import publicWidgetsRouter from './routes/publicWidgets.js';
 
 // Gizmo Packs
 import gizmoPacksRouter from './routes/gizmoPacks.js';
+
+/* ----------------------- ✅ Mount Gizmo Packs (AUTO) ---------------- */
 
 // Frontend Renderer
 import publicSiteRouter from './routes/publicSite.js';
@@ -105,7 +109,14 @@ app.use(express.json({ limit: '2mb' }));
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
-    console.log('[HTTP]', req.method, req.path, '->', res.statusCode, Date.now() - start + 'ms');
+    console.log(
+      '[HTTP]',
+      req.method,
+      req.path,
+      '->',
+      res.statusCode,
+      Date.now() - start + 'ms'
+    );
   });
   next();
 });
@@ -143,7 +154,11 @@ function getByPath(obj, path) {
 
 function asPrettyInline(value) {
   if (value == null) return '';
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
     return String(value);
   }
 
@@ -219,7 +234,10 @@ async function getEffectiveEditorCoreForType(contentTypeId, roleUpper) {
       [contentTypeId, role]
     );
 
-    const cfg = rows?.[0]?.config && typeof rows[0].config === 'object' ? rows[0].config : {};
+    const cfg =
+      rows?.[0]?.config && typeof rows[0].config === 'object'
+        ? rows[0].config
+        : {};
     const core = cfg?.core && typeof cfg.core === 'object' ? cfg.core : {};
     return core;
   } catch (e) {
@@ -254,7 +272,7 @@ function listRoutes(appRef) {
 
 function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    String(value || '').trim(),
+    String(value || '').trim()
   );
 }
 
@@ -327,7 +345,7 @@ async function attachResolvedUsersToEntries(typeId, entries) {
   // normalize field config + compute which keys we should read from data
   const userFields = {};
   for (const f of userFieldRows) {
-    const cfg = (f.config && typeof f.config === 'object') ? f.config : {};
+    const cfg = f.config && typeof f.config === 'object' ? f.config : {};
     userFields[f.field_key] = {
       multiple: !!cfg.multiple,
       display: cfg.display || 'name_email',
@@ -399,7 +417,9 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ error: 'Email and password required' });
   }
   try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [
+      email,
+    ]);
     if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
     const user = rows[0];
     const match = await bcrypt.compare(password, user.password_hash);
@@ -423,7 +443,8 @@ function authMiddleware(req, res, next) {
   if (req.path.startsWith('/public/')) return next();
 
   // Gizmo public endpoints (e.g. /api/gizmos/<id>/public/*)
-  if (req.path.includes('/gizmos/') && req.path.includes('/public/')) {
+  // (tighter match so we don't accidentally bypass auth for unrelated routes later)
+  if (req.path.startsWith('/api/gizmos/') && req.path.includes('/public/')) {
     return next();
   }
 
@@ -474,7 +495,9 @@ app.get('/api/content/:slug', async (req, res) => {
     res.json(entries);
   } catch (err) {
     console.error('[GET /api/content/:slug] error', err);
-    res.status(500).json({ error: 'Server error listing entries', detail: err.message });
+    res
+      .status(500)
+      .json({ error: 'Server error listing entries', detail: err.message });
   }
 });
 
@@ -709,7 +732,10 @@ app.put('/api/content/:slug/:id', authMiddleware, async (req, res) => {
 app.delete('/api/content/:slug/:id', authMiddleware, async (req, res) => {
   const { slug, id } = req.params;
   try {
-    const typeRes = await pool.query('SELECT id FROM content_types WHERE slug = $1 LIMIT 1', [slug]);
+    const typeRes = await pool.query(
+      'SELECT id FROM content_types WHERE slug = $1 LIMIT 1',
+      [slug]
+    );
     if (!typeRes.rows.length) return res.status(404).json({ error: 'Not found' });
     const typeId = typeRes.rows[0].id;
 
@@ -809,7 +835,17 @@ app.use((err, req, res, _next) => {
 });
 
 /* ----------------------- Listen ------------------------------------ */
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('[BOOT] ServiceUp API listening on', PORT);
+async function start() {
+  // Mount all Gizmo Packs before opening the port (no top-level await)
+  await mountGizmoPacks(app);
+
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log('[BOOT] ServiceUp API listening on', PORT);
+  });
+}
+
+start().catch((err) => {
+  console.error('[BOOT] Failed to start:', err);
+  process.exit(1);
 });
