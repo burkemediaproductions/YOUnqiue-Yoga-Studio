@@ -1,22 +1,13 @@
-import router from './router.js';
+import router from "./router.js";
 
-/**
- * FitDegree Gizmo Pack
- *
- * Mounts routes under:
- *   /api/gizmos/fitdegree/*
- *
- * Public routes should live under:
- *   /api/gizmos/fitdegree/public/*
- */
-export default {
+const fitdegreePack = {
+  slug: "fitdegree",
   register(app) {
-    // Small public ping to verify the pack is mounted without auth
-    router.get('/public/__ping', (_req, res) => {
-      res.json({ ok: true, pack: 'fitdegree', ts: Date.now() });
-    });
-
-    app.use('/api/gizmos/fitdegree', router);
-    console.log('[GIZMOS] FitDegree mounted at /api/gizmos/fitdegree');
+    // This mounts:
+    //   /api/gizmos/fitdegree/public/*
+    //   /api/gizmos/fitdegree/*   (protected by your authMiddleware unless you exempt)
+    app.use("/api/gizmos/fitdegree", router);
   },
 };
+
+export default fitdegreePack;
