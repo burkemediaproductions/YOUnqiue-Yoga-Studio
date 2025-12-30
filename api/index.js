@@ -14,16 +14,11 @@ import contentTypesRouter from './routes/contentTypes.js';
 import entryViewsRouter from './routes/entryViews.js';
 import listViewsRouter from './routes/listViews.js';
 
-// Gizmos & Gadgets & Widgets routers (admin / internal)
 import gizmosRouter from './routes/gizmos.js';
 import gadgetsRouter from './routes/gadgets.js';
 import widgetsRouter from './routes/widgets.js';
 import publicWidgetsRouter from './routes/publicWidgets.js';
-
-// Gizmo Packs API
 import gizmoPacksRouter from './routes/gizmoPacks.js';
-
-// Public site renderer routes
 import publicSiteRouter from './routes/publicSite.js';
 
 import mountExtraRoutes from './extra-routes.js';
@@ -47,7 +42,6 @@ const ALLOW = (process.env.ALLOWED_ORIGINS || '')
   .filter(Boolean);
 
 if (ALLOW.length === 0) {
-  // Local defaults; add Netlify + custom domains via Render env ALLOWED_ORIGINS
   ALLOW.push('http://localhost:5173', 'http://localhost:5174');
 }
 
@@ -218,7 +212,6 @@ function deriveTitleFromTemplate(template, data) {
 }
 
 async function getEffectiveEditorCoreForType(contentTypeId, roleUpper) {
-  // Prefer a view that is default for this role, else is_default, else newest.
   const role = String(roleUpper || '').toUpperCase();
   try {
     const { rows } = await pool.query(
@@ -319,12 +312,6 @@ function normalizeEntryData(fieldDefs, dataIn) {
 
 /**
  * Option B: auto-expand relation_user fields.
- *
- * Adds:
- *  entry._resolved = {
- *    usersById: { [uuid]: { id,email,name,role,status } },
- *    userFields: { [field_key]: { multiple, display, roleFilter, onlyActive } }
- *  }
  */
 async function attachResolvedUsersToEntries(typeId, entries) {
   const list = Array.isArray(entries) ? entries : [entries];
@@ -354,12 +341,10 @@ async function attachResolvedUsersToEntries(typeId, entries) {
   }
 
   const idsSet = new Set();
-
   for (const entry of list) {
     const data = entry?.data && typeof entry.data === 'object' ? entry.data : {};
     for (const fieldKey of Object.keys(userFields)) {
       const v = data[fieldKey];
-
       if (Array.isArray(v)) {
         for (const maybeId of v) {
           if (isUuid(maybeId)) idsSet.add(String(maybeId));
@@ -412,10 +397,9 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ error: 'Email and password required' });
   }
   try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [
-      email,
-    ]);
+    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
+
     const user = rows[0];
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) return res.status(401).json({ error: 'Invalid credentials' });
@@ -440,12 +424,9 @@ function authMiddleware(req, res, next) {
   // Global public paths
   if (path.startsWith('/public/')) return next();
 
-  // ✅ Public gizmo endpoints
+  // ✅ Public gizmo pack endpoints
   // Allows: /api/gizmos/<packSlug>/public/*
   if (/\/api\/gizmos\/[^/]+\/public(\/|$)/.test(url)) return next();
-
-  // Optional: in case req.path loses the /api prefix due to mounting
-  if (/^\/[^/]+\/public(\/|$)/.test(path) && url.includes('/api/gizmos/')) return next();
 
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No token provided' });
@@ -485,13 +466,10 @@ app.get('/api/content/:slug', async (req, res) => {
     );
 
     await attachResolvedUsersToEntries(typeId, entries);
-
     res.json(entries);
   } catch (err) {
     console.error('[GET /api/content/:slug] error', err);
-    res
-      .status(500)
-      .json({ error: 'Server error listing entries', detail: err.message });
+    res.status(500).json({ error: 'Server error listing entries', detail: err.message });
   }
 });
 
@@ -514,9 +492,7 @@ app.post('/api/content/:slug', authMiddleware, async (req, res) => {
       'SELECT id FROM content_types WHERE slug = $1 LIMIT 1',
       [typeSlug]
     );
-    if (!ctRows.length) {
-      return res.status(404).json({ error: 'Content type not found' });
-    }
+    if (!ctRows.length) return res.status(404).json({ error: 'Content type not found' });
 
     const typeId = ctRows[0].id;
 
@@ -531,17 +507,12 @@ app.post('/api/content/:slug', authMiddleware, async (req, res) => {
     const safeTitle = typeof title === 'string' && title.trim() ? title.trim() : null;
     if (!safeTitle) return res.status(400).json({ error: 'Title is required' });
 
-    if (
-      (!entrySlug || !String(entrySlug).trim()) &&
-      core?.autoSlugFromTitleIfEmpty !== false
-    ) {
+    if ((!entrySlug || !String(entrySlug).trim()) && core?.autoSlugFromTitleIfEmpty !== false) {
       entrySlug = slugify(safeTitle);
     }
 
     const finalSlug =
-      typeof entrySlug === 'string' && entrySlug.trim()
-        ? entrySlug.trim()
-        : slugify(safeTitle);
+      typeof entrySlug === 'string' && entrySlug.trim() ? entrySlug.trim() : slugify(safeTitle);
 
     const finalStatus = typeof status === 'string' && status.trim() ? status.trim() : 'draft';
 
@@ -560,7 +531,6 @@ app.post('/api/content/:slug', authMiddleware, async (req, res) => {
     );
 
     await attachResolvedUsersToEntries(typeId, rows[0]);
-
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('[POST /api/content/:slug] error', err);
@@ -592,21 +562,15 @@ app.get('/api/content/:slug/:id', authMiddleware, async (req, res) => {
 
     const typeId = ctRows[0].id;
 
-    let entryQuery;
-    let entryParams;
-    if (isUuid(id)) {
-      entryQuery = `SELECT * FROM entries WHERE id = $1 AND content_type_id = $2 LIMIT 1`;
-      entryParams = [id, typeId];
-    } else {
-      entryQuery = `SELECT * FROM entries WHERE slug = $1 AND content_type_id = $2 LIMIT 1`;
-      entryParams = [id, typeId];
-    }
+    const entryQuery = isUuid(id)
+      ? `SELECT * FROM entries WHERE id = $1 AND content_type_id = $2 LIMIT 1`
+      : `SELECT * FROM entries WHERE slug = $1 AND content_type_id = $2 LIMIT 1`;
+    const entryParams = isUuid(id) ? [id, typeId] : [id, typeId];
 
     const { rows } = await pool.query(entryQuery, entryParams);
     if (!rows.length) return res.status(404).json({ error: 'Entry not found' });
 
     await attachResolvedUsersToEntries(typeId, rows[0]);
-
     res.json(rows[0]);
   } catch (err) {
     console.error('[GET /api/content/:slug/:id] error', err);
@@ -648,17 +612,12 @@ app.put('/api/content/:slug/:id', authMiddleware, async (req, res) => {
     const safeTitle = typeof title === 'string' && title.trim() ? title.trim() : null;
     if (!safeTitle) return res.status(400).json({ error: 'Title is required' });
 
-    if (
-      (!entrySlug || !String(entrySlug).trim()) &&
-      core?.autoSlugFromTitleIfEmpty !== false
-    ) {
+    if ((!entrySlug || !String(entrySlug).trim()) && core?.autoSlugFromTitleIfEmpty !== false) {
       entrySlug = slugify(safeTitle);
     }
 
     const finalSlug =
-      typeof entrySlug === 'string' && entrySlug.trim()
-        ? entrySlug.trim()
-        : slugify(safeTitle);
+      typeof entrySlug === 'string' && entrySlug.trim() ? entrySlug.trim() : slugify(safeTitle);
 
     const finalStatus = typeof status === 'string' && status.trim() ? status.trim() : 'draft';
 
@@ -669,37 +628,25 @@ app.put('/api/content/:slug/:id', authMiddleware, async (req, res) => {
 
     const normalizedData = normalizeEntryData(fieldsRows, data || {});
 
-    let updated;
-    if (isUuid(id)) {
-      updated = await pool.query(
-        `UPDATE entries
-         SET title = $1,
-             slug = $2,
-             status = $3,
-             data = $4,
-             updated_at = now()
-         WHERE id = $5 AND content_type_id = $6
-         RETURNING *`,
-        [safeTitle, finalSlug, finalStatus, normalizedData, id, typeId]
-      );
-    } else {
-      updated = await pool.query(
-        `UPDATE entries
-         SET title = $1,
-             slug = $2,
-             status = $3,
-             data = $4,
-             updated_at = now()
-         WHERE slug = $5 AND content_type_id = $6
-         RETURNING *`,
-        [safeTitle, finalSlug, finalStatus, normalizedData, id, typeId]
-      );
-    }
+    const updated = isUuid(id)
+      ? await pool.query(
+          `UPDATE entries
+           SET title = $1, slug = $2, status = $3, data = $4, updated_at = now()
+           WHERE id = $5 AND content_type_id = $6
+           RETURNING *`,
+          [safeTitle, finalSlug, finalStatus, normalizedData, id, typeId]
+        )
+      : await pool.query(
+          `UPDATE entries
+           SET title = $1, slug = $2, status = $3, data = $4, updated_at = now()
+           WHERE slug = $5 AND content_type_id = $6
+           RETURNING *`,
+          [safeTitle, finalSlug, finalStatus, normalizedData, id, typeId]
+        );
 
     if (!updated.rows.length) return res.status(404).json({ error: 'Entry not found' });
 
     await attachResolvedUsersToEntries(typeId, updated.rows[0]);
-
     res.json(updated.rows[0]);
   } catch (err) {
     console.error('[PUT /api/content/:slug/:id] error', err);
@@ -783,11 +730,11 @@ app.get('/api/health', (_req, res) => {
 
 /* ----------------------- Routers ----------------------------------- */
 
-// PUBLIC routes first (no auth needed for /public/*)
+// PUBLIC routes first
 app.use('/api', publicSiteRouter);
 app.use('/api', publicWidgetsRouter);
 
-// core/admin routes
+// Admin/CRUD routers
 app.use('/api/content-types', authMiddleware, contentTypesRouter);
 app.use('/api/users', authMiddleware, usersRouter);
 app.use('/api/taxonomies', taxonomiesRouter);
@@ -795,24 +742,20 @@ app.use('/api/roles', authMiddleware, rolesRouter);
 app.use('/api/permissions', authMiddleware, permissionsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/dashboard', authMiddleware, dashboardRouter);
-
-// editor + list views
 app.use('/api', entryViewsRouter);
 app.use('/api', listViewsRouter);
 
-// Gizmos admin CRUD + other modules
+// Gizmos/Gadgets/Widgets admin routes (not gizmo packs)
 app.use('/api', authMiddleware, gizmosRouter);
 app.use('/api', authMiddleware, gadgetsRouter);
 app.use('/api', authMiddleware, widgetsRouter);
 
-// Gizmo Packs registry API
+// Gizmo Packs admin endpoints
 app.use('/api/gizmo-packs', gizmoPacksRouter);
 
 // redirects
 app.get('/content-types', (_req, res) => res.redirect(301, '/api/content-types'));
-app.get('/content/:slug', (req, res) =>
-  res.redirect(301, `/api/content/${req.params.slug}`)
-);
+app.get('/content/:slug', (req, res) => res.redirect(301, `/api/content/${req.params.slug}`));
 
 /* ----------------------- Last-chance error handler ----------------- */
 app.use((err, req, res, _next) => {
@@ -828,17 +771,11 @@ app.use((err, req, res, _next) => {
 
 /* ----------------------- Listen ------------------------------------ */
 async function start() {
-  // ✅ Mount Gizmo Packs BEFORE opening the port
+  // Mount gizmo packs BEFORE listening
   await mountGizmoPacks(app);
 
-  // Helpful debug: confirm your /api/gizmos/* routes exist
-  console.log(
-    '[ROUTES after gizmos]',
-    listRoutes(app).filter(
-      (r) =>
-        String(r.path).includes('gizmo') || String(r.path).includes('gizmos')
-    )
-  );
+  // Optional: show only base mount points (Express won’t show nested routes reliably)
+  console.log('[BOOT] Gizmo packs mounted (see [GIZMOS] logs above).');
 
   const PORT = process.env.PORT || 4000;
   app.listen(PORT, '0.0.0.0', () => {
