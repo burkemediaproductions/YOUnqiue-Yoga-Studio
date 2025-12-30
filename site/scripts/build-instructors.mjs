@@ -198,31 +198,35 @@ async function main() {
   }
 
   // Your API response shape: { ok:true, data:{ auth_status, response:{ data:{ cache, items }}}}
-  const payload = json.data?.response?.data;
-  const items = payload?.items || [];
-  const cacheIdentities = payload?.cache?.identities || [];
-  const cacheImages = payload?.cache?.images || [];
+    const payload = json.data?.response?.data;
+    const items = payload?.items || [];
+    const cacheIdentities = payload?.cache?.identities || [];
+    const cacheImages = payload?.cache?.images || [];
 
-  // Filter out instructors with no photo OR placeholder/empty bio (build-time, best for SEO)
-  const visibleItems = items.filter((item) => {
-  const identity = identityById.get(String(item.identity_id)) || null;
+    // ✅ build lookup maps FIRST (so we can reference them in filters/loops)
+    const identityById = new Map(cacheIdentities.map((i) => [String(i.id), i]));
+    const imageById = new Map(cacheImages.map((img) => [String(img.id), img]));
 
-  const imageId = String(
-    item.profile_picture_image_id || identity?.profile_picture_id || ""
-  ).trim();
+    // ✅ Filter out instructors with no photo OR placeholder/empty bio
+    const visibleItems = items.filter((item) => {
+      const identity = identityById.get(String(item.identity_id)) || null;
 
-  if (!imageId) return false; // no photo
+      const imageId = String(
+        item.profile_picture_image_id || identity?.profile_picture_id || ""
+      ).trim();
 
-  const about = (identity?.about_me || item.about_me || "").trim().toLowerCase();
-  if (!about) return false; // no bio
+      if (!imageId) return false; // no photo
 
-  // exclude placeholder bios
-  if (about.includes("bio coming soon") || about.includes("coming soon")) {
-    return false;
-  }
+      const about = (identity?.about_me || item.about_me || "").trim().toLowerCase();
+      if (!about) return false; // no bio
 
-  return true;
-});
+      // exclude placeholder bios
+      if (about.includes("bio coming soon") || about.includes("coming soon")) {
+        return false;
+      }
+
+      return true;
+    });
 
 
   // Build cards and optionally detail pages
