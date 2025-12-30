@@ -8,11 +8,17 @@
  * The router should include your public endpoints like:
  *   GET /public/instructors
  */
-import router from './router.js';
+import express from "express";
+import router from "./router.js";
 
 const fitdegreeGizmo = {
-  id: 'fitdegree',
+  id: "fitdegree",
   register(app) {
+    // 🔥 debug proof route
+    app.get(`/api/gizmos/${this.id}/__ping`, (_req, res) => {
+      res.json({ ok: true, gizmo: this.id });
+    });
+
     app.use(`/api/gizmos/${this.id}`, router);
   },
 };
