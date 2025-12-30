@@ -118,7 +118,9 @@ const pool = new pg.Pool({
 
 pool.on('error', (err) => {
   console.error('[pg.pool error]', err);
+});
 
+const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 
 // ---------------------------------------------------------------------------
 // Title template helpers (server-side)
@@ -225,10 +227,6 @@ async function getEffectiveEditorCoreForType(contentTypeId, roleUpper) {
     return {};
   }
 }
-
-});
-
-const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 
 /* ----------------------- Helpers ----------------------------------- */
 function listRoutes(appRef) {
@@ -421,17 +419,29 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 function authMiddleware(req, res, next) {
+  // Global public paths
   if (req.path.startsWith('/public/')) return next();
 
+  // Gizmo public endpoints (e.g. /api/gizmos/<id>/public/*)
+  if (req.path.includes('/gizmos/') && req.path.includes('/public/')) {
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'No token provided' });
+  if (!authHeader) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
 
   const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
-  } catch (err) {
+  } catch (_err) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
@@ -471,7 +481,7 @@ app.get('/api/content/:slug', async (req, res) => {
 // Create entry
 app.post('/api/content/:slug', authMiddleware, async (req, res) => {
   const typeSlug = req.params.slug;
-  const { title, slug: entrySlug, status, data } = req.body || {};
+  let { title, slug: entrySlug, status, data } = req.body || {};
 
   function slugify(str) {
     return (str || '')
@@ -491,7 +501,7 @@ app.post('/api/content/:slug', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Content type not found' });
     }
 
-        const typeId = ctRows[0].id;
+    const typeId = ctRows[0].id;
 
     // Server-side title/slug derivation from the effective Editor View core config
     const roleUpper = String(req.user?.role || 'ADMIN').toUpperCase();
@@ -545,7 +555,11 @@ app.post('/api/content/:slug', authMiddleware, async (req, res) => {
         detail: err.detail || err.message,
       });
     }
-    res.status(500).json({ error: 'Failed to create entry', code: err.code || null, detail: err.message });
+    res.status(500).json({
+      error: 'Failed to create entry',
+      code: err.code || null,
+      detail: err.message,
+    });
   }
 });
 
@@ -588,7 +602,7 @@ app.get('/api/content/:slug/:id', authMiddleware, async (req, res) => {
 // Update entry (accepts ID or slug)
 app.put('/api/content/:slug/:id', authMiddleware, async (req, res) => {
   const { slug: typeSlug, id } = req.params;
-  const { title, slug: entrySlug, status, data } = req.body || {};
+  let { title, slug: entrySlug, status, data } = req.body || {};
 
   function slugify(str) {
     return (str || '')
@@ -606,7 +620,7 @@ app.put('/api/content/:slug/:id', authMiddleware, async (req, res) => {
     );
     if (!ctRows.length) return res.status(404).json({ error: 'Content type not found' });
 
-        const typeId = ctRows[0].id;
+    const typeId = ctRows[0].id;
 
     // Server-side title/slug derivation from the effective Editor View core config
     const roleUpper = String(req.user?.role || 'ADMIN').toUpperCase();
@@ -682,7 +696,11 @@ app.put('/api/content/:slug/:id', authMiddleware, async (req, res) => {
         detail: err.detail || err.message,
       });
     }
-    res.status(500).json({ error: 'Failed to update entry', code: err.code || null, detail: err.message });
+    res.status(500).json({
+      error: 'Failed to update entry',
+      code: err.code || null,
+      detail: err.message,
+    });
   }
 });
 
@@ -697,14 +715,25 @@ app.delete('/api/content/:slug/:id', authMiddleware, async (req, res) => {
 
     if (isUuid(id)) {
       await pool.query('DELETE FROM entry_versions WHERE entry_id = $1', [id]);
-      const del = await pool.query('DELETE FROM entries WHERE id = $1 AND content_type_id = $2 RETURNING id', [id, typeId]);
+      const del = await pool.query(
+        'DELETE FROM entries WHERE id = $1 AND content_type_id = $2 RETURNING id',
+        [id, typeId]
+      );
       if (!del.rows.length) return res.status(404).json({ error: 'Not found' });
     } else {
-      const { rows: entryRows } = await pool.query('SELECT id FROM entries WHERE slug = $1 AND content_type_id = $2 LIMIT 1', [id, typeId]);
+      const { rows: entryRows } = await pool.query(
+        'SELECT id FROM entries WHERE slug = $1 AND content_type_id = $2 LIMIT 1',
+        [id, typeId]
+      );
       if (!entryRows.length) return res.status(404).json({ error: 'Not found' });
       const entryId = entryRows[0].id;
+
       await pool.query('DELETE FROM entry_versions WHERE entry_id = $1', [entryId]);
-      const del = await pool.query('DELETE FROM entries WHERE id = $1 AND content_type_id = $2 RETURNING id', [entryId, typeId]);
+
+      const del = await pool.query(
+        'DELETE FROM entries WHERE id = $1 AND content_type_id = $2 RETURNING id',
+        [entryId, typeId]
+      );
       if (!del.rows.length) return res.status(404).json({ error: 'Not found' });
     }
 
