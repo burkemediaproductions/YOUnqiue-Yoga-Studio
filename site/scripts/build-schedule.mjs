@@ -27,18 +27,14 @@ function escapeHtml(str) {
 }
 
 function formatPrettyDateTime(value) {
-  if (!value) return ""; // <-- prevents .replace crash
+  if (!value) return "";
 
-  // value is usually "YYYY-MM-DD HH:MM:SS"
   const str = String(value);
 
-  // Force a parseable ISO-ish string
-  const d = new Date(str.replace(" ", "T") + (str.length === 19 ? "" : ""));
+  // value is usually "YYYY-MM-DD HH:MM:SS"
+  const d = new Date(str.replace(" ", "T"));
 
-  if (Number.isNaN(d.getTime())) {
-    // last resort: return original
-    return str;
-  }
+  if (Number.isNaN(d.getTime())) return str;
 
   const date = d.toLocaleDateString("en-US", {
     month: "long",
@@ -74,28 +70,18 @@ function buildCard(item) {
   const bookHref = item.share_url ? item.share_url : "/book.html#book";
 
   return `
-    <article class="card">
-      <h3>${title}</h3>
-      <p class="muted" style="margin-top:6px;">
-          ${when ? when : "Time TBD"}${instructor ? ` · ${instructor}` : ""}
-      </p>
-      ${desc ? `<p style="margin-top:10px;">${desc}</p>` : ""}
-      <p style="margin-top:14px;">
-        <a class="btn btn-primary" href="${escapeHtml(bookHref)}" target="_blank" rel="noopener">Book</a>
-      </p>
-    </article>
-  `.trim();
-}
-
-function buildGrid(cardsHtml) {
-  if (!cardsHtml.length) {
-    return `<p class="muted" style="margin-top:14px;">No upcoming classes found right now. Please check back soon.</p>`;
-  }
-
-  return `
-    <div class="grid cols-3" style="margin-top:18px;">
-      ${cardsHtml.join("\n")}
-    </div>
+<article class="card">
+  <h3>${title}</h3>
+  <p class="muted" style="margin-top:6px;">
+    ${when ? when : "Time TBD"}${instructor ? ` · ${instructor}` : ""}
+  </p>
+  ${desc ? `<p style="margin-top:10px;">${desc}</p>` : ""}
+  <p style="margin-top:14px;">
+    <a class="btn btn-primary" href="${escapeHtml(
+      bookHref
+    )}" target="_blank" rel="noopener">Book</a>
+  </p>
+</article>
   `.trim();
 }
 
@@ -108,8 +94,6 @@ function toQuery(params) {
 }
 
 function getDateRange() {
-  // Start today 00:00 local (we’re using yyyy-mm-dd 06:00:00 in your example,
-  // but FitDegree returns fs_* time anyway — this is fine as a wide net).
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
   const end = new Date(start.getTime() + DAYS_AHEAD * 24 * 60 * 60 * 1000);
@@ -132,7 +116,6 @@ async function main() {
   const url =
     `${API_BASE}/schedule/item/?` +
     toQuery({
-      // from your working example:
       object_type__IN: '["1","2","22","4"]',
       show_past: "false",
       published_status__IN: "[1]",
@@ -144,7 +127,6 @@ async function main() {
       fitspot_id__EQ: FITSPOT_ID,
       company_id: COMPANY_ID,
       company_id__EQ: COMPANY_ID,
-      // optional client markers (not required, but matches your calls)
       __fd_client: "admin",
       __fd_client_version: "3.1.7",
       __identifier: "site-build",
@@ -156,20 +138,24 @@ async function main() {
   if (!res.ok) throw new Error(`[BUILD] Fetch failed: ${res.status} ${res.statusText}`);
 
   const json = await res.json();
-  const ok = json?.response?.success;
-  if (!ok) throw new Error(`[BUILD] API response not success`);
+  if (!json?.response?.success) throw new Error(`[BUILD] API response not success`);
 
-  const data = json.response.data || {};
-  const items = Array.isArray(data.items) ? data.items : [];
+  const items = Array.isArray(json?.response?.data?.items) ? json.response.data.items : [];
 
-  // Upcoming only, sorted by fs_event_datetime (fitspot time)
+  // Upcoming only, sorted by fs_event_datetime
   const upcoming = items
     .filter((it) => !it.past)
-    .sort((a, b) => String(a.fs_event_datetime || "").localeCompare(String(b.fs_event_datetime || "")))
+    .sort((a, b) =>
+      String(a.fs_event_datetime || "").localeCompare(String(b.fs_event_datetime || ""))
+    )
     .slice(0, LIMIT);
 
-  const cards = upcoming.map(buildCard);
-  const html = buildGrid(cards);
+  // IMPORTANT: inject ONLY cards (no grid wrapper)
+  const cardsHtml = upcoming.map(buildCard).join("\n");
+
+  const injection = cardsHtml.length
+    ? cardsHtml
+    : `<p class="muted" style="margin-top:14px;">No upcoming classes found right now. Please check back soon.</p>`;
 
   const bookPath = path.join(PUBLISH_DIR, "book.html");
   const raw = await fs.readFile(bookPath, "utf8");
@@ -178,7 +164,7 @@ async function main() {
     throw new Error(`[BUILD] Placeholder not found in ${bookPath}. Add:\n${PLACEHOLDER}`);
   }
 
-  await fs.writeFile(bookPath, raw.replace(PLACEHOLDER, html), "utf8");
+  await fs.writeFile(bookPath, raw.replace(PLACEHOLDER, injection), "utf8");
   console.log(`[BUILD] Updated ${bookPath} with ${upcoming.length} schedule items.`);
 }
 
