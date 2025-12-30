@@ -1,26 +1,22 @@
-/**
- * FitDegree Gizmo entrypoint (server).
- *
- * Contract:
- *   - default export is an object with register(app)
- *   - register mounts routes under /api/gizmos/<id>
- *
- * The router should include your public endpoints like:
- *   GET /public/instructors
- */
-import express from "express";
-import router from "./router.js";
+import router from './router.js';
 
-const fitdegreeGizmo = {
-  id: "fitdegree",
+/**
+ * FitDegree Gizmo Pack
+ *
+ * Mounts routes under:
+ *   /api/gizmos/fitdegree/*
+ *
+ * Public routes should live under:
+ *   /api/gizmos/fitdegree/public/*
+ */
+export default {
   register(app) {
-    // 🔥 debug proof route
-    app.get(`/api/gizmos/${this.id}/public/__ping`, (_req, res) => {
-      res.json({ ok: true, gizmo: this.id });
+    // Small public ping to verify the pack is mounted without auth
+    router.get('/public/__ping', (_req, res) => {
+      res.json({ ok: true, pack: 'fitdegree', ts: Date.now() });
     });
 
-    app.use(`/api/gizmos/${this.id}`, router);
+    app.use('/api/gizmos/fitdegree', router);
+    console.log('[GIZMOS] FitDegree mounted at /api/gizmos/fitdegree');
   },
 };
-
-export default fitdegreeGizmo;
