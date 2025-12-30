@@ -439,33 +439,34 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 function authMiddleware(req, res, next) {
-  // Global public paths
-  if (req.path.startsWith('/public/')) return next();
+  const url = req.originalUrl || req.url || '';
+  const path = req.path || '';
 
-  // Gizmo public endpoints (e.g. /api/gizmos/<id>/public/*)
-  // (tighter match so we don't accidentally bypass auth for unrelated routes later)
-  if (req.path.startsWith('/api/gizmos/') && req.path.includes('/public/')) {
-    return next();
-  }
+  // Global public paths
+  if (path.startsWith('/public/')) return next();
+
+  // ✅ Public gizmo endpoints (works no matter how routers are mounted)
+  // Allows: /api/gizmos/<packSlug>/public/*
+  if (/\/api\/gizmos\/[^/]+\/public(\/|$)/.test(url)) return next();
+
+  // (Optional) if you ever mount at /api/gizmos and lose the /api/gizmos prefix in req.path:
+  if (/^\/[^/]+\/public(\/|$)/.test(path) && url.includes('/api/gizmos/')) return next();
 
   const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
+  if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
   const token = authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
+  if (!token) return res.status(401).json({ error: 'No token provided' });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
-  } catch (_err) {
+  } catch {
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
+
 
 /* ----------------------- Entries ----------------------------------- */
 
