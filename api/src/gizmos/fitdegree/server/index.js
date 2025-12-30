@@ -1,16 +1,19 @@
 /**
- * ServiceUp Gizmo entrypoint (server).
+ * FitDegree Gizmo entrypoint (server).
  *
- * Minimal contract:
- *   import fitdegreeGizmo from "./gizmos/fitdegree/server/index.js"
- *   fitdegreeGizmo.register(app) // mounts routes under /api/gizmos/fitdegree
+ * Contract:
+ *   - default export is an object with register(app)
+ *   - register mounts routes under /api/gizmos/<id>
+ *
+ * The router should include your public endpoints like:
+ *   GET /public/instructors
  */
-import router from "./router.js";
+import router from './router.js';
 
 const fitdegreeGizmo = {
-  id: "fitdegree",
+  id: 'fitdegree',
   register(app) {
-    app.use("/api/gizmos/fitdegree", router);
+    app.use(`/api/gizmos/${this.id}`, router);
   },
 };
 
