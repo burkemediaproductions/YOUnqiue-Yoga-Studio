@@ -203,14 +203,33 @@ async function main() {
   const cacheIdentities = payload?.cache?.identities || [];
   const cacheImages = payload?.cache?.images || [];
 
-  const identityById = new Map(cacheIdentities.map((i) => [String(i.id), i]));
-  const imageById = new Map(cacheImages.map((img) => [String(img.id), img]));
+  // Filter out instructors with no photo OR placeholder/empty bio (build-time, best for SEO)
+  const visibleItems = items.filter((item) => {
+  const identity = identityById.get(String(item.identity_id)) || null;
+
+  const imageId = String(
+    item.profile_picture_image_id || identity?.profile_picture_id || ""
+  ).trim();
+
+  if (!imageId) return false; // no photo
+
+  const about = (identity?.about_me || item.about_me || "").trim().toLowerCase();
+  if (!about) return false; // no bio
+
+  // exclude placeholder bios
+  if (about.includes("bio coming soon") || about.includes("coming soon")) {
+    return false;
+  }
+
+  return true;
+});
+
 
   // Build cards and optionally detail pages
   const cards = [];
   const detailOutputs = []; // { outPath, html }
 
-  for (const item of items) {
+  for (const item of visibleItems) {
     const identity = identityById.get(String(item.identity_id)) || null;
 
     const fullName = `${identity?.first_name || item.first_name || ""} ${
@@ -272,7 +291,10 @@ async function main() {
 
   const updated = instructorsHtml.replace(PLACEHOLDER, gridHtml);
   await fs.writeFile(instructorsPath, updated, "utf8");
-  console.log(`[BUILD] Updated ${instructorsPath} with ${items.length} instructors.`);
+  console.log(
+  `[BUILD] Updated ${instructorsPath} with ${visibleItems.length} instructors (filtered from ${items.length}).`
+);
+
 
   // Write detail pages
   if (GENERATE_DETAIL) {
