@@ -1,85 +1,75 @@
+// api/src/gizmos/fitdegree/server/router.js
 import express from "express";
-import { getFitDegreeConfig } from "./config.js";
+import { fitdegreeFetchJson } from "./client.js";
 import { FITDEGREE_ENDPOINTS } from "./endpoints.js";
 
 const router = express.Router();
 
-/**
- * Public ping — should work WITHOUT a token:
- *   /api/gizmos/fitdegree/public/__ping
- */
+function resolveEndpoint(value, fallback) {
+  // support function endpoints
+  if (typeof value === "function") return value();
+  // support string endpoints
+  if (typeof value === "string" && value.trim()) return value.trim();
+  // fallback
+  return fallback;
+}
+
 router.get("/public/__ping", (_req, res) => {
   res.json({ ok: true, pack: "fitdegree", scope: "public" });
 });
 
-/**
- * Protected ping — will require token because it is NOT under /public:
- *   /api/gizmos/fitdegree/__ping
- */
 router.get("/__ping", (_req, res) => {
-  res.json({ ok: true, pack: "fitdegree", scope: "protected" });
+  res.json({ ok: true, pack: "fitdegree" });
 });
 
-function asArray(v) {
-  if (Array.isArray(v)) return v;
-  if (v == null) return [];
-  return [v];
-}
-
-function normalizeTeamMember(m) {
-  if (!m || typeof m !== "object") return null;
-  return {
-    id: m.id || m.uuid || m._id || null,
-    name: m.name || m.full_name || m.fullName || "",
-    title: m.title || m.role || "",
-    bio: m.bio || m.description || "",
-    image: m.image || m.photo || m.avatar || "",
-    raw: m,
-  };
-}
-
-/**
- * PUBLIC: instructors list
- * GET /api/gizmos/fitdegree/public/instructors?fitspot_id=123
- */
+// PUBLIC: instructors (team members)
 router.get("/public/instructors", async (req, res) => {
   try {
-    const fitspotId = req.query.fitspot_id || req.query.fitspotId;
-    const cfg = await getFitDegreeConfig({ fitspotId });
+    const endpoint = resolveEndpoint(
+      FITDEGREE_ENDPOINTS.instructors,
+      FITDEGREE_ENDPOINTS.TEAM_MEMBERS
+    );
 
-    const url = FITDEGREE_ENDPOINTS.instructors(cfg);
-    const r = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${cfg.apiKey}`,
+    const data = await fitdegreeFetchJson(endpoint, {
+      query: {
+        // FitDegree often uses these; harmless if ignored
+        page: req.query.page,
+        limit: req.query.limit,
       },
     });
 
-    const json = await r.json().catch(() => null);
-
-    if (!r.ok) {
-      return res.status(r.status).json({
-        ok: false,
-        error: "FitDegree request failed",
-        status: r.status,
-        detail: json,
-      });
-    }
-
-    const list =
-      json?.instructors ||
-      json?.data ||
-      json?.results ||
-      asArray(json);
-
-    res.json({
-      ok: true,
-      instructors: asArray(list).map(normalizeTeamMember).filter(Boolean),
+    res.json({ ok: true, data });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      ok: false,
+      error: err.message || "Failed to fetch instructors",
+      details: err.details || null,
     });
-  } catch (e) {
-    console.error("[fitdegree/public/instructors]", e);
-    res.status(500).json({ ok: false, error: e?.message || "Server error" });
+  }
+});
+
+// PUBLIC: upcoming classes
+router.get("/public/classes", async (req, res) => {
+  try {
+    const endpoint = resolveEndpoint(
+      FITDEGREE_ENDPOINTS.classes,
+      FITDEGREE_ENDPOINTS.UPCOMING_CLASSES
+    );
+
+    const data = await fitdegreeFetchJson(endpoint, {
+      query: {
+        page: req.query.page,
+        limit: req.query.limit,
+      },
+    });
+
+    res.json({ ok: true, data });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      ok: false,
+      error: err.message || "Failed to fetch classes",
+      details: err.details || null,
+    });
   }
 });
 
