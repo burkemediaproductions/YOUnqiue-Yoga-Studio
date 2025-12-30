@@ -1,60 +1,12 @@
-import fs from "fs";
-import path from "path";
-import { pathToFileURL } from "url";
-
-function listSuspiciousLines(filePath) {
-  try {
-    const src = fs.readFileSync(filePath, "utf8");
-    const lines = src.split(/\r?\n/);
-
-    const suspicious = [];
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Lines that START with || are the classic "Unexpected token '||'" cause.
-      if (/^\s*\|\|/.test(line)) suspicious.push({ lineNo: i + 1, line });
-
-      // Also flag common paste/merge artifacts
-      if (line.includes("<<<<<<") || line.includes("======") || line.includes(">>>>>>")) {
-        suspicious.push({ lineNo: i + 1, line });
-      }
-
-      // Rare: accidental double-pipe runs in weird contexts
-      if (line.includes("||||")) suspicious.push({ lineNo: i + 1, line });
-    }
-
-    // Return first ~25 suspicious lines so logs don't explode
-    return suspicious.slice(0, 25);
-  } catch {
-    return [];
-  }
-}
-
-function walkJsFiles(dir) {
-  const out = [];
-  if (!fs.existsSync(dir)) return out;
-
-  const stack = [dir];
-  while (stack.length) {
-    const cur = stack.pop();
-    const items = fs.readdirSync(cur, { withFileTypes: true });
-    for (const it of items) {
-      const p = path.join(cur, it.name);
-      if (it.isDirectory()) {
-        if (it.name === "node_modules") continue;
-        stack.push(p);
-      } else if (it.isFile() && p.endsWith(".js")) {
-        out.push(p);
-      }
-    }
-  }
-  return out;
-}
+import fs from 'fs';
+import path from 'path';
+import { pathToFileURL } from 'url';
+import { spawnSync } from 'child_process';
 
 /**
  * Auto-mount any gizmo pack that exports a default object with register(app).
  *
- * Supported:
+ * Supported structures:
  *   api/src/gizmos/<slug>/server/index.js
  *   api/src/gizmos/<slug>/server.js
  *   api/gizmos/<slug>/server/index.js
@@ -64,21 +16,20 @@ export async function mountGizmoPacks(app) {
   const cwd = process.cwd();
 
   const baseDirs = [
-    path.resolve(cwd, "api", "src", "gizmos"),
-    path.resolve(cwd, "api", "gizmos"),
-    // If your Render "Root Directory" is already /api, these will be the real ones:
-    path.resolve(cwd, "src", "gizmos"),
-    path.resolve(cwd, "gizmos"),
+    path.resolve(cwd, 'api', 'src', 'gizmos'),
+    path.resolve(cwd, 'api', 'gizmos'),
+    path.resolve(cwd, 'src', 'gizmos'),
+    path.resolve(cwd, 'gizmos'),
   ];
 
-  console.log("[GIZMOS] mountGizmoPacks() cwd =", cwd);
-  console.log("[GIZMOS] baseDirs =", baseDirs);
+  console.log('[GIZMOS] mountGizmoPacks() cwd =', cwd);
+  console.log('[GIZMOS] baseDirs =', baseDirs);
 
   const mounted = new Set();
 
   for (const baseDir of baseDirs) {
     if (!fs.existsSync(baseDir)) {
-      console.log("[GIZMOS] No gizmos directory:", baseDir);
+      console.log('[GIZMOS] No gizmos directory:', baseDir);
       continue;
     }
 
@@ -88,15 +39,15 @@ export async function mountGizmoPacks(app) {
       .map((d) => d.name);
 
     if (gizmoDirs.length) {
-      console.log("[GIZMOS] Found packs in", baseDir, ":", gizmoDirs);
+      console.log('[GIZMOS] Found packs in', baseDir, ':', gizmoDirs);
     }
 
     for (const slug of gizmoDirs) {
       if (mounted.has(slug)) continue;
 
       const candidates = [
-        path.join(baseDir, slug, "server", "index.js"),
-        path.join(baseDir, slug, "server.js"),
+        path.join(baseDir, slug, 'server', 'index.js'),
+        path.join(baseDir, slug, 'server.js'),
       ];
 
       const entry = candidates.find((p) => fs.existsSync(p));
@@ -105,13 +56,46 @@ export async function mountGizmoPacks(app) {
         continue;
       }
 
-      try {
-        console.log(`[GIZMOS] ${slug}: importing ->`, entry);
+      console.log(`[GIZMOS] ${slug}: importing ->`, entry);
 
+      // ✅ 1) Pre-check syntax to get exact line/col in logs
+      try {
+        const check = spawnSync(process.execPath, ['--check', entry], {
+          encoding: 'utf8',
+        });
+
+        if (check.status !== 0) {
+          console.error(`[GIZMOS] ${slug}: node --check FAILED`);
+          if (check.stdout) console.error('[GIZMOS] check stdout:\n' + check.stdout);
+          if (check.stderr) console.error('[GIZMOS] check stderr:\n' + check.stderr);
+
+          // Also scan for common merge-conflict markers
+          try {
+            const src = fs.readFileSync(entry, 'utf8');
+            const markers = ['<<<<<<<', '>>>>>>>', '=======', '|||||||'];
+            for (const m of markers) {
+              const idx = src.indexOf(m);
+              if (idx !== -1) {
+                const before = src.slice(0, idx).split('\n').length;
+                console.error(`[GIZMOS] ${slug}: found merge marker "${m}" near line ${before}`);
+              }
+            }
+          } catch {}
+
+          // Skip mounting this pack
+          continue;
+        }
+      } catch (e) {
+        console.error(`[GIZMOS] ${slug}: node --check threw`, e?.message || e);
+        continue;
+      }
+
+      // ✅ 2) Import + register
+      try {
         const mod = await import(pathToFileURL(entry).href);
         const pack = mod?.default;
 
-        if (pack && typeof pack.register === "function") {
+        if (pack && typeof pack.register === 'function') {
           pack.register(app);
           mounted.add(slug);
           console.log(`[GIZMOS] Mounted: ${slug} (${entry})`);
@@ -122,46 +106,17 @@ export async function mountGizmoPacks(app) {
         }
       } catch (e) {
         console.error(`[GIZMOS] Failed to mount ${slug}.`);
-        console.error("[GIZMOS] Entry:", entry);
-        console.error("[GIZMOS] Error name:", e?.name);
-        console.error("[GIZMOS] Error message:", e?.message);
-
-        // If it's a syntax error, scan the pack's JS files for classic causes.
-        if (e?.name === "SyntaxError") {
-          const packDir = path.join(baseDir, slug);
-          const files = walkJsFiles(packDir);
-
-          console.error(`[GIZMOS] SyntaxError scan in ${packDir} (${files.length} js files):`);
-
-          let printed = 0;
-          for (const f of files) {
-            const suspicious = listSuspiciousLines(f);
-            if (suspicious.length) {
-              printed++;
-              console.error(`  [GIZMOS] Suspicious lines in: ${f}`);
-              for (const s of suspicious) {
-                console.error(`    L${s.lineNo}: ${s.line}`);
-              }
-              if (printed >= 10) break; // don't spam logs
-            }
-          }
-
-          if (printed === 0) {
-            console.error("[GIZMOS] No obvious '|| at line start' or merge markers found in pack JS files.");
-            console.error("[GIZMOS] Next step: run node --check on each pack file locally to find the exact parser failure.");
-          }
-        }
-
-        if (e?.stack) {
-          console.error("[GIZMOS] Stack:\n", e.stack);
-        }
+        console.error('[GIZMOS] Entry:', entry);
+        console.error('[GIZMOS] Error name:', e?.name);
+        console.error('[GIZMOS] Error message:', e?.message || e);
+        console.error('[GIZMOS] Stack:\n', e?.stack || '(no stack)');
       }
     }
   }
 
   if (!mounted.size) {
-    console.log("[GIZMOS] No packs mounted.");
+    console.log('[GIZMOS] No packs mounted.');
   } else {
-    console.log("[GIZMOS] Mounted packs:", Array.from(mounted));
+    console.log('[GIZMOS] Mounted packs:', Array.from(mounted));
   }
 }
