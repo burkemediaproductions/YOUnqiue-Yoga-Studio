@@ -12,6 +12,15 @@ const API_BASE =
 const PUBLISH_DIR = process.env.PUBLISH_DIR?.trim() || ".";
 const PLACEHOLDER = "<!-- TRAINING_STATIC -->";
 
+// How many training items to show
+const LIMIT = Number(process.env.TRAINING_LIMIT || 6);
+
+// If you want to only show items that look like training, use a keyword match.
+// Leave empty ("") to show anything returned (still limited + sorted by title).
+const TRAINING_KEYWORD = (process.env.TRAINING_KEYWORD || "teacher training")
+  .trim()
+  .toLowerCase();
+
 function escapeHtml(str) {
   return String(str ?? "")
     .replace(/&/g, "&amp;")
@@ -20,42 +29,51 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+function buildCard(item) {
+  const title = escapeHtml(item.title || "Training");
+  const level = escapeHtml(item.difficulty_text || "");
+  const groupName = escapeHtml(item.group_name || item.class_group?.name || "");
+  const descRaw = (item.description || "").trim();
+  const desc = escapeHtml(descRaw);
+
+  // You can send them to booking (or a specific training CTA)
+  const href = "/book.html#book";
+
+  return `
+    <article class="card">
+      <h3>${title}</h3>
+      <p class="muted" style="margin-top:6px;">
+        ${groupName || "Teacher Training"}${level ? ` · ${level}` : ""}
+      </p>
+      ${desc ? `<p style="margin-top:10px;">${desc}</p>` : ""}
+      <p style="margin-top:14px;">
+        <a class="btn btn-primary" href="${escapeHtml(href)}">View Schedule / Book</a>
+      </p>
+    </article>
+  `.trim();
+}
+
+/**
+ * IMPORTANT:
+ * teacher-training.html already contains:
+ *   <div class="grid ..."> <!-- TRAINING_STATIC --> </div>
+ * So we must return ONLY the <article> cards, NOT another grid wrapper.
+ */
+function buildHtml(cardsHtml) {
+  if (!cardsHtml.length) {
+    return `<p class="muted" style="margin-top:14px;">No teacher training items found right now. Please check back soon.</p>`;
+  }
+  return cardsHtml.join("\n");
+}
+
 function toQuery(params) {
   const usp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) usp.set(k, String(v));
   return usp.toString();
 }
 
-function buildGrid(cardsHtml) {
-  if (!cardsHtml.length) {
-    return `<p class="muted" style="margin-top:14px;">Training info will be posted soon. Please check back.</p>`;
-  }
-  return `
-    <div class="grid cols-3" style="margin-top:18px;">
-      ${cardsHtml.join("\n")}
-    </div>
-  `.trim();
-}
-
-function buildTrainingCard(cls) {
-  const title = escapeHtml(cls.title || "Teacher Training");
-  const desc = escapeHtml((cls.description || "").trim());
-  const difficulty = escapeHtml(cls.difficulty_text || "All Levels");
-
-  return `
-    <article class="card">
-      <h3>${title}</h3>
-      <p class="muted" style="margin-top:6px;">${difficulty}</p>
-      ${desc ? `<p style="margin-top:10px;">${desc}</p>` : ""}
-      <p style="margin-top:14px;">
-        <a class="btn btn-primary" href="/book.html#book">Ask / Apply</a>
-      </p>
-    </article>
-  `.trim();
-}
-
 async function main() {
-  console.log("[BUILD] Teacher Training generator starting…");
+  console.log("[BUILD] Teacher training generator starting…");
 
   const url =
     `${API_BASE}/group-class/?` +
@@ -63,7 +81,7 @@ async function main() {
       is_deleted: 0,
       title__ORDER: "ASC",
       page: 1,
-      limit: 200,
+      limit: 100, // pull enough to filter locally
       fitspot_id: FITSPOT_ID,
       fitspot_id__EQ: FITSPOT_ID,
       company_id: COMPANY_ID,
@@ -73,37 +91,42 @@ async function main() {
       __identifier: "site-build",
     });
 
+  console.log("[BUILD] Fetch:", url);
+
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`[BUILD] group-class fetch failed: ${res.status}`);
+  if (!res.ok) throw new Error(`[BUILD] Fetch failed: ${res.status} ${res.statusText}`);
+
   const json = await res.json();
-  if (!json?.response?.success) throw new Error(`[BUILD] group-class not success`);
+  const ok = json?.response?.success;
+  if (!ok) throw new Error(`[BUILD] API response not success`);
 
   const data = json.response.data || {};
   const items = Array.isArray(data.items) ? data.items : [];
 
-  const training = items.filter((c) => {
-    const group = (c.group_name || c.class_group?.name || "").toLowerCase();
-    const title = (c.title || "").toLowerCase();
-    const desc = (c.description || "").toLowerCase();
-    return (
-      group.includes("teacher training") ||
-      title.includes("teacher training") ||
-      desc.includes("teacher training")
-    );
-  });
+  // Filter to “teacher training” items (by title/description/group), then limit.
+  const filtered = items
+    .filter((it) => {
+      if (!TRAINING_KEYWORD) return true;
+      const hay = `${it.title || ""} ${it.description || ""} ${it.group_name || ""} ${it.class_group?.name || ""}`
+        .toLowerCase();
+      return hay.includes(TRAINING_KEYWORD);
+    })
+    .slice(0, LIMIT);
 
-  const cards = training.map(buildTrainingCard);
-  const html = buildGrid(cards);
+  const cards = filtered.map(buildCard);
+  const html = buildHtml(cards);
 
   const filePath = path.join(PUBLISH_DIR, "teacher-training.html");
   const raw = await fs.readFile(filePath, "utf8");
 
   if (!raw.includes(PLACEHOLDER)) {
-    throw new Error(`[BUILD] Missing ${PLACEHOLDER} in ${filePath}`);
+    throw new Error(
+      `[BUILD] Placeholder not found in ${filePath}. Make sure it still contains:\n${PLACEHOLDER}\n\n(If you accidentally committed a “built” version, restore the placeholder in git.)`
+    );
   }
 
   await fs.writeFile(filePath, raw.replace(PLACEHOLDER, html), "utf8");
-  console.log("[BUILD] Updated teacher-training.html");
+  console.log(`[BUILD] Updated ${filePath} with ${filtered.length} training items.`);
 }
 
 main().catch((err) => {
