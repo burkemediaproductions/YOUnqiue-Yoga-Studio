@@ -18,7 +18,7 @@
 
       <nav class="nav" aria-label="Primary">
         <a href="/">Home</a>
-        <a href="/book.html">Book</a>
+        <a href="/book.html" class="active">Book</a>
         <a href="/classes-services.html">Classes &amp; Services</a>
         <a href="/instructors.html">Instructor Team</a>
         <a href="/teacher-training.html">Teacher Training</a>
@@ -46,14 +46,23 @@
   </header>
 
   <main id="main">
-    <section class="page-hero">
-      <div class="container">
-        <div class="breadcrumb">Home / Book</div>
+
+    <!-- Video hero (inner) -->
+    <section class="hero hero-inner">
+      <video autoplay muted loop playsinline preload="metadata" poster="/assets/WebsiteBG-Book.jpg" aria-hidden="true">
+        <source src="/assets/WebsiteBG-Book.mp4" type="video/mp4">
+      </video>
+
+      <div class="hero-content">
+        <div class="breadcrumb" style="color: rgba(255,255,255,.9);">Home / Book</div>
         <h1>Book a Class</h1>
         <p>
-          Browse the schedule below and reserve your spot. You’ll stay on the site
-          during booking.
+          Browse the schedule below and reserve your spot. You’ll stay on the site during booking.
         </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#book">Go to Booking</a>
+          <a class="btn btn-secondary" href="/classes-services.html">Explore Classes</a>
+        </div>
       </div>
     </section>
 
@@ -67,10 +76,10 @@
           For now, it’s a curated preview — the full bookable schedule is below.
         </p>
 
-       <div class="grid cols-3" style="margin-top:18px;">
+        <div class="grid cols-3" style="margin-top:18px;">
           <!-- SCHEDULE_STATIC -->
-       </div>
-        
+        </div>
+
         <div style="margin-top:16px;">
           <a class="btn btn-primary" href="#book">Go to Booking</a>
         </div>
@@ -83,9 +92,7 @@
         <div class="widget-card">
           <span class="kicker">Schedule</span>
           <h2>Reserve your spot</h2>
-          <p>
-            Choose a class, sign in, and book — all right here.
-          </p>
+          <p>Choose a class, sign in, and book — all right here.</p>
 
           <div data-fd-widget="fd-schedule"
                data-fitspot-id="782"
