@@ -19,7 +19,7 @@
       <nav class="nav" aria-label="Primary">
         <a href="/">Home</a>
         <a href="/book.html">Book</a>
-        <a href="/classes-services.html">Classes &amp; Services</a>
+        <a href="/classes-services.html" class="active">Classes &amp; Services</a>
         <a href="/instructors.html">Instructor Team</a>
         <a href="/teacher-training.html">Teacher Training</a>
         <a href="/contact.html">Contact</a>
@@ -46,13 +46,23 @@
   </header>
 
   <main id="main">
-    <section class="page-hero">
-      <div class="container">
-        <div class="breadcrumb">Home / Classes &amp; Services</div>
+
+    <!-- Video hero (inner) -->
+    <section class="hero hero-inner">
+      <video autoplay muted loop playsinline preload="metadata" poster="/assets/WebsiteBG-ClassesServices.jpg" aria-hidden="true">
+        <source src="/assets/WebsiteBG-ClassesServices.mp4" type="video/mp4">
+      </video>
+
+      <div class="hero-content">
+        <div class="breadcrumb" style="color: rgba(255,255,255,.9);">Home / Classes &amp; Services</div>
         <h1>Classes &amp; Services</h1>
         <p>
           Explore our offerings. For exact times and availability, head to booking.
         </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="/book.html#book">Book from the Schedule</a>
+          <a class="btn btn-secondary" href="/instructors.html">Meet the Team</a>
+        </div>
       </div>
     </section>
 
@@ -66,9 +76,8 @@
         </p>
 
         <div class="grid cols-3" style="margin-top:18px;">
-            <!-- CLASS_TYPES_STATIC -->
+          <!-- CLASS_TYPES_STATIC -->
         </div>
-
 
         <div style="margin-top:16px;">
           <a class="btn btn-primary" href="/book.html#book">Book from the Schedule</a>
@@ -88,7 +97,6 @@
         <div class="grid cols-2" style="margin-top:18px;">
           <!-- ONE_ON_ONE_STATIC -->
         </div>
-
       </div>
     </section>
 
