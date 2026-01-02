@@ -58,6 +58,51 @@ function pickImageUrl(imageObj) {
   return sources[0].url || null;
 }
 
+/**
+ * Determine whether an instructor should be visible publicly.
+ * We check BOTH the instructor record (`item`) and the person/identity record (`identity`)
+ * because providers sometimes store "inactive/deactivated" flags on either one.
+ *
+ * Rule: If we can clearly tell they're inactive/deactivated/deleted -> hide.
+ * If there are NO signals -> treat as active (don't hide accidentally).
+ */
+function isActiveInstructor(record) {
+  if (!record || typeof record !== "object") return true;
+
+  // hard deletes / soft deletes
+  if (record?.is_deleted === true) return false;
+  if (record?.deleted === true) return false;
+  if (record?.archived === true) return false;
+
+  // common active/enable flags
+  if (record?.active === false) return false;
+  if (record?.is_active === false) return false;
+  if (record?.isActive === false) return false;
+  if (record?.enabled === false) return false;
+  if (record?.is_enabled === false) return false;
+
+  // deactivation patterns
+  if (record?.deactivated === true) return false;
+  if (record?.deactivated_at) return false;
+
+  // status strings
+  const status = String(record?.status || record?.state || "").toLowerCase().trim();
+  if (status) {
+    // treat anything not "active" as inactive
+    if (status !== "active") return false;
+  }
+
+  return true;
+}
+
+function isPublicInstructor(item, identity) {
+  // If either side says inactive -> hide
+  if (!isActiveInstructor(item)) return false;
+  if (!isActiveInstructor(identity)) return false;
+
+  return true;
+}
+
 function buildInstructorCard({ item, identity, imageUrl, detailHref }) {
   const fullName = `${identity?.first_name || item.first_name || ""} ${
     identity?.last_name || item.last_name || ""
@@ -85,7 +130,7 @@ function buildInstructorCard({ item, identity, imageUrl, detailHref }) {
       ${img}
       ${nameBlock}
       ${shortBio}
-    </article>
+    </article> 
   `.trim();
 }
 
@@ -198,36 +243,39 @@ async function main() {
   }
 
   // Your API response shape: { ok:true, data:{ auth_status, response:{ data:{ cache, items }}}}
-    const payload = json.data?.response?.data;
-    const items = payload?.items || [];
-    const cacheIdentities = payload?.cache?.identities || [];
-    const cacheImages = payload?.cache?.images || [];
+  const payload = json.data?.response?.data;
+  const items = payload?.items || [];
+  const cacheIdentities = payload?.cache?.identities || [];
+  const cacheImages = payload?.cache?.images || [];
 
-    // ✅ build lookup maps FIRST (so we can reference them in filters/loops)
-    const identityById = new Map(cacheIdentities.map((i) => [String(i.id), i]));
-    const imageById = new Map(cacheImages.map((img) => [String(img.id), img]));
+  // ✅ build lookup maps FIRST (so we can reference them in filters/loops)
+  const identityById = new Map(cacheIdentities.map((i) => [String(i.id), i]));
+  const imageById = new Map(cacheImages.map((img) => [String(img.id), img]));
 
-    // ✅ Filter out instructors with no photo OR placeholder/empty bio
-    const visibleItems = items.filter((item) => {
-      const identity = identityById.get(String(item.identity_id)) || null;
+  // ✅ Filter out instructors that shouldn't be public (inactive/deactivated/etc)
+  // ✅ PLUS your existing "must have photo + must have real bio" rule
+  const visibleItems = items.filter((item) => {
+    const identity = identityById.get(String(item.identity_id)) || null;
 
-      const imageId = String(
-        item.profile_picture_image_id || identity?.profile_picture_id || ""
-      ).trim();
+    // 1) Hide inactive/deactivated
+    if (!isPublicInstructor(item, identity)) return false;
 
-      if (!imageId) return false; // no photo
+    // 2) Require photo
+    const imageId = String(
+      item.profile_picture_image_id || identity?.profile_picture_id || ""
+    ).trim();
+    if (!imageId) return false;
 
-      const about = (identity?.about_me || item.about_me || "").trim().toLowerCase();
-      if (!about) return false; // no bio
+    // 3) Require bio (and not placeholder)
+    const about = (identity?.about_me || item.about_me || "").trim().toLowerCase();
+    if (!about) return false;
 
-      // exclude placeholder bios
-      if (about.includes("bio coming soon") || about.includes("coming soon")) {
-        return false;
-      }
+    if (about.includes("bio coming soon") || about.includes("coming soon")) {
+      return false;
+    }
 
-      return true;
-    });
-
+    return true;
+  });
 
   // Build cards and optionally detail pages
   const cards = [];
@@ -295,10 +343,10 @@ async function main() {
 
   const updated = instructorsHtml.replace(PLACEHOLDER, gridHtml);
   await fs.writeFile(instructorsPath, updated, "utf8");
-  console.log(
-  `[BUILD] Updated ${instructorsPath} with ${visibleItems.length} instructors (filtered from ${items.length}).`
-);
 
+  console.log(
+    `[BUILD] Updated ${instructorsPath} with ${visibleItems.length} instructors (filtered from ${items.length}).`
+  );
 
   // Write detail pages
   if (GENERATE_DETAIL) {
@@ -316,26 +364,3 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-
-function isActiveInstructor(i) {
-  // common flags (varies by API/provider)
-  if (i?.active === false) return false;
-  if (i?.is_active === false) return false;
-  if (i?.isActive === false) return false;
-  if (i?.enabled === false) return false;
-  if (i?.is_enabled === false) return false;
-
-  // common status strings
-  const status = String(i?.status || i?.state || "").toLowerCase();
-  if (status && status !== "active") return false;
-
-  // common "soft delete" / "archived" patterns
-  if (i?.archived === true) return false;
-  if (i?.deleted === true) return false;
-  if (i?.deactivated === true) return false;
-  if (i?.deactivated_at) return false;
-
-  // if no signals exist, treat as active (don’t hide accidentally)
-  return true;
-}
-
