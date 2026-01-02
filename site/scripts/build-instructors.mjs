@@ -316,3 +316,26 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
+function isActiveInstructor(i) {
+  // common flags (varies by API/provider)
+  if (i?.active === false) return false;
+  if (i?.is_active === false) return false;
+  if (i?.isActive === false) return false;
+  if (i?.enabled === false) return false;
+  if (i?.is_enabled === false) return false;
+
+  // common status strings
+  const status = String(i?.status || i?.state || "").toLowerCase();
+  if (status && status !== "active") return false;
+
+  // common "soft delete" / "archived" patterns
+  if (i?.archived === true) return false;
+  if (i?.deleted === true) return false;
+  if (i?.deactivated === true) return false;
+  if (i?.deactivated_at) return false;
+
+  // if no signals exist, treat as active (don’t hide accidentally)
+  return true;
+}
+
