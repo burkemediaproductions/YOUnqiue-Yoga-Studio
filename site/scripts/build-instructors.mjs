@@ -1,16 +1,4 @@
 // scripts/build-instructors.mjs
-// Build-time generator for instructors page (and optional detail pages)
-//
-// Defaults:
-// - Reads/writes instructors.html in the publish directory
-// - Injects HTML at <!-- INSTRUCTORS_STATIC -->
-//
-// Env vars you can set in Netlify:
-// - INSTRUCTORS_API_URL (default: your Render endpoint)
-// - PUBLISH_DIR (default: "."; set to "dist" if your build outputs there)
-// - GENERATE_INSTRUCTOR_DETAIL_PAGES ("true" to enable)
-// - SITE_ORIGIN (optional, for canonical URLs, e.g. https://youniqueyoga.netlify.app)
-
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -23,8 +11,36 @@ const GENERATE_DETAIL =
   (process.env.GENERATE_INSTRUCTOR_DETAIL_PAGES || "").toLowerCase() === "true";
 
 const SITE_ORIGIN = (process.env.SITE_ORIGIN || "").replace(/\/+$/, ""); // optional
-
 const PLACEHOLDER = "<!-- INSTRUCTORS_STATIC -->";
+
+/**
+ * Publishing controls:
+ * - INSTRUCTORS_HIDE_IDENTITY_IDS="1807950,1520302"
+ * - INSTRUCTORS_HIDE_USERNAMES="StephanieMac,SomeUser"
+ * - INSTRUCTORS_HIDE_NAMES="Stephanie Norwood,First Last"
+ *
+ * (Names are compared lowercased/trimmed; IDs/usernames exact match after trimming)
+ */
+const HIDE_IDENTITY_IDS = new Set(
+  (process.env.INSTRUCTORS_HIDE_IDENTITY_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+
+const HIDE_USERNAMES = new Set(
+  (process.env.INSTRUCTORS_HIDE_USERNAMES || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+
+const HIDE_NAMES = new Set(
+  (process.env.INSTRUCTORS_HIDE_NAMES || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 function slugify(input) {
   return String(input || "")
@@ -48,59 +64,12 @@ function pickImageUrl(imageObj) {
   if (!imageObj?.sources?.length) return null;
   const sources = [...imageObj.sources];
 
-  // If widths exist, try closest to 640
   const withWidth = sources.filter((s) => Number.isFinite(Number(s.width)));
   if (withWidth.length) {
     withWidth.sort((a, b) => Math.abs(a.width - 640) - Math.abs(b.width - 640));
     return withWidth[0].url || null;
   }
-
   return sources[0].url || null;
-}
-
-/**
- * Determine whether an instructor should be visible publicly.
- * We check BOTH the instructor record (`item`) and the person/identity record (`identity`)
- * because providers sometimes store "inactive/deactivated" flags on either one.
- *
- * Rule: If we can clearly tell they're inactive/deactivated/deleted -> hide.
- * If there are NO signals -> treat as active (don't hide accidentally).
- */
-function isActiveInstructor(record) {
-  if (!record || typeof record !== "object") return true;
-
-  // hard deletes / soft deletes
-  if (record?.is_deleted === true) return false;
-  if (record?.deleted === true) return false;
-  if (record?.archived === true) return false;
-
-  // common active/enable flags
-  if (record?.active === false) return false;
-  if (record?.is_active === false) return false;
-  if (record?.isActive === false) return false;
-  if (record?.enabled === false) return false;
-  if (record?.is_enabled === false) return false;
-
-  // deactivation patterns
-  if (record?.deactivated === true) return false;
-  if (record?.deactivated_at) return false;
-
-  // status strings
-  const status = String(record?.status || record?.state || "").toLowerCase().trim();
-  if (status) {
-    // treat anything not "active" as inactive
-    if (status !== "active") return false;
-  }
-
-  return true;
-}
-
-function isPublicInstructor(item, identity) {
-  // If either side says inactive -> hide
-  if (!isActiveInstructor(item)) return false;
-  if (!isActiveInstructor(identity)) return false;
-
-  return true;
 }
 
 function buildInstructorCard({ item, identity, imageUrl, detailHref }) {
@@ -130,7 +99,7 @@ function buildInstructorCard({ item, identity, imageUrl, detailHref }) {
       ${img}
       ${nameBlock}
       ${shortBio}
-    </article> 
+    </article>
   `.trim();
 }
 
@@ -226,60 +195,72 @@ function buildDetailPageHtml({ fullName, about, imageUrl, backHref, canonical })
 </html>`;
 }
 
+function shouldHideInstructor({ item, identity, fullName }) {
+  const identityId = String(identity?.id || "").trim();
+  const username = String(identity?.username || item?.username || "").trim();
+  const nameKey = String(fullName || "").trim().toLowerCase();
+
+  if (identityId && HIDE_IDENTITY_IDS.has(identityId)) return true;
+  if (username && HIDE_USERNAMES.has(username)) return true;
+  if (nameKey && HIDE_NAMES.has(nameKey)) return true;
+
+  return false;
+}
+
 async function main() {
   console.log("[BUILD] Instructors generator starting…");
   console.log("[BUILD] API_URL:", API_URL);
   console.log("[BUILD] PUBLISH_DIR:", PUBLISH_DIR);
   console.log("[BUILD] GENERATE_DETAIL:", GENERATE_DETAIL);
 
-  const res = await fetch(API_URL);
-  if (!res.ok) {
-    throw new Error(`[BUILD] Fetch failed: ${res.status} ${res.statusText}`);
+  if (HIDE_IDENTITY_IDS.size || HIDE_USERNAMES.size || HIDE_NAMES.size) {
+    console.log("[BUILD] Hide lists enabled:", {
+      ids: [...HIDE_IDENTITY_IDS],
+      usernames: [...HIDE_USERNAMES],
+      names: [...HIDE_NAMES],
+    });
   }
+
+  const res = await fetch(API_URL);
+  if (!res.ok) throw new Error(`[BUILD] Fetch failed: ${res.status} ${res.statusText}`);
 
   const json = await res.json();
-  if (!json?.ok) {
-    throw new Error(`[BUILD] API returned ok=false: ${json?.error || "Unknown error"}`);
-  }
+  if (!json?.ok) throw new Error(`[BUILD] API returned ok=false: ${json?.error || "Unknown error"}`);
 
-  // Your API response shape: { ok:true, data:{ auth_status, response:{ data:{ cache, items }}}}
+  // Your API response shape: { ok:true, data:{ response:{ data:{ cache, items }}}}
   const payload = json.data?.response?.data;
-  const items = payload?.items || [];
-  const cacheIdentities = payload?.cache?.identities || [];
-  const cacheImages = payload?.cache?.images || [];
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const cacheIdentities = Array.isArray(payload?.cache?.identities) ? payload.cache.identities : [];
+  const cacheImages = Array.isArray(payload?.cache?.images) ? payload.cache.images : [];
 
-  // ✅ build lookup maps FIRST (so we can reference them in filters/loops)
   const identityById = new Map(cacheIdentities.map((i) => [String(i.id), i]));
   const imageById = new Map(cacheImages.map((img) => [String(img.id), img]));
 
-  // ✅ Filter out instructors that shouldn't be public (inactive/deactivated/etc)
-  // ✅ PLUS your existing "must have photo + must have real bio" rule
+  // ✅ Visible filters: hide list + must have photo + must have non-placeholder bio
   const visibleItems = items.filter((item) => {
     const identity = identityById.get(String(item.identity_id)) || null;
 
-    // 1) Hide inactive/deactivated
-    if (!isPublicInstructor(item, identity)) return false;
+    const fullName = `${identity?.first_name || item.first_name || ""} ${
+      identity?.last_name || item.last_name || ""
+    }`.trim();
 
-    // 2) Require photo
-    const imageId = String(
-      item.profile_picture_image_id || identity?.profile_picture_id || ""
-    ).trim();
+    // 1) Publishing control hide list
+    if (shouldHideInstructor({ item, identity, fullName })) return false;
+
+    // 2) must have photo
+    const imageId = String(item.profile_picture_image_id || identity?.profile_picture_id || "").trim();
     if (!imageId) return false;
 
-    // 3) Require bio (and not placeholder)
+    // 3) must have bio (non-placeholder)
     const about = (identity?.about_me || item.about_me || "").trim().toLowerCase();
     if (!about) return false;
-
-    if (about.includes("bio coming soon") || about.includes("coming soon")) {
-      return false;
-    }
+    if (about.includes("bio coming soon") || about.includes("coming soon")) return false;
 
     return true;
   });
 
-  // Build cards and optionally detail pages
   const cards = [];
-  const detailOutputs = []; // { outPath, html }
+  const detailOutputs = [];
 
   for (const item of visibleItems) {
     const identity = identityById.get(String(item.identity_id)) || null;
@@ -289,21 +270,14 @@ async function main() {
     }`.trim();
 
     const about = (identity?.about_me || item.about_me || "").trim();
-    const imageId = String(item.profile_picture_image_id || identity?.profile_picture_id || "");
+    const imageId = String(item.profile_picture_image_id || identity?.profile_picture_id || "").trim();
     const imageObj = imageId ? imageById.get(imageId) : null;
     const imageUrl = pickImageUrl(imageObj);
 
-    const slug = slugify(fullName) || slugify(item.username) || String(item.id);
+    const slug = slugify(fullName) || slugify(identity?.username || item.username) || String(item.id);
     const detailHref = GENERATE_DETAIL ? `/instructors/${slug}/` : null;
 
-    cards.push(
-      buildInstructorCard({
-        item,
-        identity,
-        imageUrl,
-        detailHref,
-      })
-    );
+    cards.push(buildInstructorCard({ item, identity, imageUrl, detailHref }));
 
     if (GENERATE_DETAIL) {
       const outDir = path.join(PUBLISH_DIR, "instructors", slug);
@@ -324,16 +298,8 @@ async function main() {
 
   const gridHtml = buildGridHtml(cards);
 
-  // Read instructors.html
   const instructorsPath = path.join(PUBLISH_DIR, "instructors.html");
-  let instructorsHtml;
-  try {
-    instructorsHtml = await fs.readFile(instructorsPath, "utf8");
-  } catch {
-    throw new Error(
-      `[BUILD] Could not read ${instructorsPath}. Make sure instructors.html exists in your publish directory.`
-    );
-  }
+  const instructorsHtml = await fs.readFile(instructorsPath, "utf8");
 
   if (!instructorsHtml.includes(PLACEHOLDER)) {
     throw new Error(
@@ -341,20 +307,18 @@ async function main() {
     );
   }
 
-  const updated = instructorsHtml.replace(PLACEHOLDER, gridHtml);
-  await fs.writeFile(instructorsPath, updated, "utf8");
+  await fs.writeFile(instructorsPath, instructorsHtml.replace(PLACEHOLDER, gridHtml), "utf8");
 
   console.log(
     `[BUILD] Updated ${instructorsPath} with ${visibleItems.length} instructors (filtered from ${items.length}).`
   );
 
-  // Write detail pages
   if (GENERATE_DETAIL) {
     for (const d of detailOutputs) {
       await fs.mkdir(d.outDir, { recursive: true });
       await fs.writeFile(d.outPath, d.html, "utf8");
     }
-    console.log(`[BUILD] Wrote ${detailOutputs.length} instructor detail pages to /instructors/<slug>/`);
+    console.log(`[BUILD] Wrote ${detailOutputs.length} instructor detail pages.`);
   }
 
   console.log("[BUILD] Done.");
